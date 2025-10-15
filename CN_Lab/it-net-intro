@@ -1,0 +1,972 @@
+College of Engineering and Management, KOLAGHAT
+CN Laboratory( 6th Spring Semester 2025, IT )
+
+Experiment: Network introduction ( Filename - it-net-intro.txt )
+
+Name:_________________________________________________
+
+Roll.No:___________________     Date:_________________
+
+
+Documents to read:
+                   1. Unix-and-Internet-Fundamentals-HOWTO
+                      Chapter 3 and 12
+
+                   2. Net-HOWTO
+
+
+The above documents should be available in your PC in compressed form.
+Read the documents with [zless] command, such as
+
+$ zless /usr/share/doc/HOWTO/en-txt/Net-HOWTO.gz
+
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Create a directory [intro] in your home directory
+$ mkdir $HOME/intro
+
+Change into that directory
+$ cd $HOME/intro
+
+
+Major  Linux  distributions such as  Redhat, Caldera, Debian  etc etc,
+running on well known hardware, have networking enabled in the kernel.
+Linux  supports many different networking protocols such as TCP/IP-v4,
+TCP/IP-v6,  IPX ( Internet Packet Exchange ),  AppleTalk etc etc.  The
+following  command  and its  output gives a list of  supported address
+families and network hardware.  All of these may not be available in a
+particular Linux installation. 
+
+$ netstat -V
+net-tools 1.60
+netstat 1.42 (2001-04-15)
+Fred Baumgarten, Alan Cox, Bernd Eckenfels, Phil Blundell,  Tuan Hoang
+and others +NEW_ADDRT +RTF_IRTT +RTF_REJECT +FW_MASQUERADE +I18N
+AF: (inet) +UNIX +INET +INET6 +IPX +AX25 +NETROM +X25  +ATALK  +ECONET
+    +ROSE
+HW: +ETHER +ARC +SLIP +PPP +TUNNEL +TR +AX25  +NETROM +X25  +FR  +ROSE
+    +ASH +SIT +FDDI +HIPPI +HDLC/LAPB
+
+
+The  following  command  and  part  of the  output lists  the  address 
+families not supported in this system.
+
+$ netstat -v | grep netstat
+netstat: no support for `AF IPX' on this system.
+netstat: no support for `AF AX25' on this system.
+netstat: no support for `AF X25' on this system.
+netstat: no support for `AF NETROM' on this system.
+
+Actual output would vary for a particular setup.
+
+The discussions in this laboratory are limited to TCP/IPv4 networking.
+The  experiments are carried out on Debian/GNU Linux. As a result some
+Debian specific commands, such as [dpkg], have been used.  Other Linux
+distributions have equivalent commands.
+
+In this laboratory, your PC is a host connected to laboratory computer
+network.  The IP address of your host is the address of the  interface
+which connects it to the computer network. Usually the eth0  interface
+is  used to  connect your host to the laboratory  LAN.  More than  one
+network interface may be used in your host.
+
+The following diagram shows a possible arrangement.
+
+                         ------------------            --------------
+                        |                  |          |              |
+  --- Laboratory LAN ---|eth0  Host-A  ppp0|----------|ppp0  Host-B  |
+                        |                  |          |              |
+                         ------------------            --------------
+                192.16.5.45             192.16.4.6
+
+Host-A  has two interfaces,  eth0 is used to connect it to the LAN and
+ppp0 interface is used to connect it to Host-B. Other hosts on the LAN
+have  to go via  Host-A to reach Host-B.  Host-A has two IP addresses,
+one for eth0 interface and other for ppp0 interface. 
+
+
+IP Addresses:
+                Internet Protocol Addresses are composed of four bytes
+( 32 bits ).  The convention is to write addresses in  "dotted decimal
+notation".  This is also called  "dotted decimal quad".  In this form,
+each byte is converted to a decimal number, ( 0 to 255 ).  The leading
+zeros are dropped ( unless the number is zero ) and written with  each
+byte separated by a period (`.') character. 
+
+Example:  192.168.5.40  is an IP address. 
+
+After the kernel boots, [ init ] process is executed.  This process is
+father of all processes.  [ init ] reads its configuration file called
+[/etc/inittab] and starts the boot process.  There are a few different
+flavours of [init] process.
+
+If you are using Debian Linux,  the [ etc/inittab ] file might contain
+the line
+    
+/etc/init.d/rcS
+
+This  is the shell script  that manages the  boot process.  This shell
+script  in turn calls other shell scripts.  One of these called  shell
+scripts,  runs the commands to set up the  network interfaces of  your
+host.  If  your host is configured  properly, you can find out the  IP
+address/addresses  of the  interfaces of  your host  with [ ifconfig ]
+command.
+
+Find out the path to [ifconfig] command
+$ whereis ifconfig
+
+Run the command using using it's path, such as 
+$ /sbin/ifconfig
+
+From the output of the command fill the following blanks
+
+Interface-name   IP address
+
+eth0             inet addr:___.___.___.___
+
+lo               inet addr:___._._._
+
+These  are the  IP addresses of two  interfaces  of your host. The two
+interfaces are Ethernet-zero and loopback interfaces. 
+
+By convention,  each interface of a host or router has an  IP address.
+It is  legal for the same IP address to be used on each interface of a
+single machine, but usually each interface will have its own  address.
+
+The [ifconfig] command can be used to configure interfaces.  Usually a
+convenient program is made available to simplify network configuration
+for system administrators.
+
+Find out if such a program is available in your PC.
+
+$ whereis netcfg
+$ whereis netconfig
+$ whereis netconf
+$ whereis systemconfigurator
+
+Note:  [systemconfigurator] utility is available in CD-5 of the set of
+       7 CDs.
+
+The program is to be run as [ root ] user, as it changes system files.
+This utility program, if available, is not be used now.
+
+Try  a very simple use of [ ifconfig ] command.  Deactivate  the  eth0
+interface
+# ifconfig eth0 down
+
+Verify the effect of the command
+# ifconfig 
+
+Bring up the eth0 interface again
+# ifconfig eth0 up
+
+Verify the effect of the command
+# ifconfig
+
+Internet Protocol Networks ( IP networks ) are contiguous sequences of
+IP addresses. The following is a portion of IP network address:
+
+       192.168.5.30
+       192.168.5.31
+       192.168.5.32
+       192.168.5.33
+       192.168.5.34
+       192.168.5.35
+       192.168.5.36
+       192.168.5.37
+       192.168.5.38
+       192.168.5.39
+       192.168.5.40
+       192.168.5.41
+       
+192.168.5  is  common in all the above  addresses.  This is called the
+"network portion of the address".  The  remaining  portion of  any  IP
+address is called the "host portion". The network portion of the above
+addresses is  192.168.5  and the host portions are 30,31,32 ... 41.
+
+The  number of bits that are shared by all addresses within a  network
+is  called the netmask.  255.255.255.0  is the netmask of the above IP
+network.  If IP address aa.bb.cc.dd is bitwise ANDed with the  netmask
+of the above IP network and the result is 192.168.5  then  aa.bb.cc.dd
+belongs  to this network, otherwise not.  If an IP address is  bitwise
+ANDed with it's netmask we get the network address.  Host portion of a
+network address is all zeroes.
+
+Example:
+           Host Address       192.168.5.50
+           Network Mask       255.255.255.0
+           Network Portion    192.168.5
+           Host portion                 50 
+           -----------------  -------------
+           Network Address    192.168.5.0
+           Broadcast Address  192.168.5.255
+
+ 
+Every  host  on a  network  listens to its  address and the  broadcast
+address.  Certain types of data, such as routing information, are sent
+simultaneously  to all the hosts in a network by  using the  broadcast
+address. Widely used convention is to use the highest  address  as the
+broadcast address, as shown above. Some networks might use the network
+address ( the lowest address ) as the  broadcast  address. To use such
+convention, each host of such a network must be configured to consider
+the network address as the broadcast address.  
+
+During  early stages of development of the  IP protocol, networks were
+grouped into "classes", for some administrative reasons.
+
+                       Address Range                  Netmask
+ 
+Class A Address        0.0.0.0   - 127.255.255.255    255.0.0.0
+Class B Address        128.0.0.0 - 191.255.255.255    255.255.0.0
+Class C Address        192.0.0.0 - 223.255.255.255    255.255.255.0
+MULTICAST Address      224.0.0.0 - 239.255.255.255    240.0.0.0
+Reserved               240.0.0.0 - 247.255.255.255
+
+For a network,  that is never intended to be connected with  Internet,
+any  address  range may be used. However,  for  reasons of safety  and
+consistency,  some blocks of IP network addresses have been set  aside
+to be used for private networks.  Such networks are never connected to
+the Internet directly. 
+
+    ----------------------------------------------------------
+   |         RESERVED PRIVATE NETWORK ALLOCATIONS             |
+    ----------------------------------------------------------
+   | Network | Netmask       | Network Addresses              |
+   | Class   |               |                                |
+    ----------------------------------------------------------
+   |    A    | 255.0.0.0     | 10.0.0.0    to 10.255.255.255  |
+   |    B    | 255.255.0.0   | 172.16.0.0  to 172.31.255.255  |
+   |    C    | 255.255.255.0 | 192.168.0.0 to 192.168.255.255 |
+    ----------------------------------------------------------
+
+At  present  172.16.xx.xx ( Class B )  and  192.168.xx.xx  ( Class C )
+addresses  are  used at  CEMK.  The hosts at  CEMK  are  not  directly 
+connected  to  Internet.  When hosts of CEMK connect to Internet, they
+pretend to be coming from 210.212.4.4 address. This is done with (NAT)
+Network Address Translation, in the CEMK router-firewall. The  present
+configuration of CEMK router-firewall is shown below:
+
+                     ------------------                 -------------
+                    |                  |               |             |
+                    |      CEMK        |               |   CEMK      |
+INTERNET----->-<----| router-firewall  |--->-<---------| mail-server |
+        210.212.4.4 |       &          |               |     &       |
+                    |   nameserver     |               |  nameserver |
+                    |                  |               |             |
+                     ------------------                 -------------
+                             | 172.16.1.100             
+                             |
+                             |
+                         CEMK LAN
+                             
+
+loopback interface:
+                         The "loopback" interface is a special type of
+interface  that  allows a host to connect to  itself.  There are  some
+reasons why loopback interface is needed, such as testing a new server
+locally, without generating network traffic. This address is local  to
+the host and is not visible from outside. The  IP address  `127.0.0.1'
+has been assigned specifically for loopback interface. This convention
+is followed by almost all hosts.
+
+To test the loopback interface, send three [ping] packets to it
+$ ping -c3 127.0.0.1
+
+Test  the [ telnet ] server running in your host. Attempted connection
+would be refused if the telnet server [telnetd] is not running in your
+host. [telnet] is the client program. 
+$ telnet 127.0.0.1
+
+Test the [daytime] server running in your host.  That server must  be
+enabled for the following command to succeed
+$ telnet 127.0.0.1 13
+
+The  loopback interface accepts packets sent to any host of  127.0.0.0
+Class A address.
+
+Try this, taking x to z from the range 0 to 255
+$ ping -c2 127.x.y.z
+
+
+[ifconfig] command can be used to change the address of an interface.
+
+Change the address of the loopback interface to 172.16.1.50
+# ifconfig lo 172.16.1.50
+
+Check the address of the loopback interface
+# ifconfig
+
+Send four [ping] packets to the loopback interface.
+$ ping -c4 172.16.x.y
+
+Choosing  some random address, as above, for the loopback interface is
+not  allowed,  as the  programs  which  assume the loopback  interface
+address to be 127.0.0.1 , would fail. 
+
+Change the address of the eth0 interface to 10.1.11.111
+# ifconfig eth0 10.1.11.111 netmask 255.0.0.0 up
+
+Check the effect of the above command
+# ifconfig
+
+Send two [ping] packets to eth0 interface
+$ ping  -c2  10.1.11.111
+
+
+Choosing some random address for the eth0 interface is not allowed for
+various  reasons.  The addresses changed by you, by the above commands
+are not  permanent. During next reboot, the [init] scripts would  read
+the  existing  addresses stored in some system files and  restore  the
+existing addresses.
+
+Reboot the host
+# reboot
+
+Verify restoration of addresses
+# ifconfig
+
+
+Again change the addresses of the two interfaces
+
+# ifconfig lo 172.17.1.2 up
+# ifconfig eth0 172.31.32.33 netmask 255.255.0.0 up
+
+Verify with
+# ifconfig
+
+As before these changes are temporary. The existing addresses can also
+be  restored without a system reboot, by running  the proper  [ init ]
+script manually.
+
+Restore the existing values
+# /etc/init.d/networking restart
+
+Check restoration of addresses
+# ifconfig
+
+
+Name to IP address conversion:
+
+[ ping ] the host of your friend. Replace  192.168.5.15  by the actual
+address of friend's host
+$ ping -c2 192.168.5.15
+
+It is  difficult for humans to remember numbers. Names  are  easier to
+remember.  But  IP packets  do not carry names but  numbers. Names  to
+"dotted decimal quad"  address conversion  mechanisms exist. The  file
+[/etc/hosts]  and/or  DNS ( Domain Name Server ) may be used for this. 
+
+In  which sequence they would be used, depends on an entry in  another
+system file [/etc/nsswitch.conf]. 
+
+Check the file
+$ less /etc/nsswitch.conf
+ 
+An entry
+        
+hosts:          files dns
+
+indicates that [/etc/hosts] file is checked then DNS is used.
+
+
+Now you are going to make changes to a system file as [root] user.  If
+you make a mistake, the host might become inoperable,  as changes in a
+system  file is permanent. Before making changes to a  system file,  a
+copy  of the  working file is made.  The copy is made distinctive  for
+later  identification.  The copy can be used to put back  the  working
+configuration, if the changes are not satisfactory.
+
+
+Save  the [/etc/hosts] file in your home directory with a  distinctive 
+extension 
+$ cp  /etc/hosts  $HOME/etc-hosts.$(date +%s)
+
+Now modify the file
+
+# nano /etc/hosts
+
+Add the following lines.  Replace 192.168.35 with actual IP address of
+your  friend's host. In this example, host of your friend is known  to
+your host, by two names.
+
+192.168.5.35      dhoni
+192.168.5.35      pathan
+
+Save the file. 
+
+[ping] your friend's host
+$ ping -c3 dhoni
+$ ping -c3 pathan
+
+
+Using DNS for address conversion:
+                                           A DNS server has the job of
+translating names (readable by humans) to IP addresses.  A DNS  server
+does not know all the IP addresses in the world; rather, it is able to
+request  other servers for the unknown addresses. The DNS server  will
+either  return the wanted IP address to the user or  report  that  the
+name cannot be found in the tables. DNS server has other uses too. DNS
+server is also known as name server.
+
+Your host has to know the address of a DNS server to use. This address
+is declared in system file [/etc/resolv.conf].
+
+Save a copy of the existing file in your home directory
+$ cp  /etc/resolv.conf  $HOME/etc-resolv.conf.$(date +%s)
+
+Edit [ /etc/resolv.conf ] file to put the following line in that file.
+Comment the other existing entries, do not delete them.
+#-----------------------
+nameserver 192.168.5.251
+#-----------------------
+
+Replace 192.168.5.251 with the actual address of the DNS server. It is
+assumed that the name server is situated in the  192.168.5.0  network.
+If the name server is not in  192.168.5.0  network, route is to be set
+to reach the name server.
+
+Example:
+          Assume the name server address is 172.16.1.100 and it can be 
+reached via a router having an IP address 192.168.5.252
+
+First record the existing route present in your PC.
+# route -n
+
+Destination     Gateway          Iface
+
+
+Then add route to the name server via eth0 interface of your host
+                                  
+# route add -host 172.16.1.100 gw 192.168.5.252 dev eth0
+
+A route would be added in the routing table as shown below
+
+Destination     Gateway          Iface
+172.16.1.100    192.168.2.252    eth0
+
+If  the  assumptions are correct, the following command should  get IP
+address  of the  host [ www.google.com ]. In [ /etc/resolv.conf ]  the
+address of name server is to be set as 172.16.1.100 
+$ host www.google.com
+
+
+Remove the line added by you in file [/etc/resolv.conf] and  uncomment
+the lines commented by you. The route added by you is temporary and it
+will be removed on next reboot.
+
+A  host running  Linux ( or other UNIX OS ) has  some trivial  servers
+installed. The [echo] server using TCP protocol, is such a server.  As
+this  service is used very infrequently, it does not run continuously.
+Instead  a server,  called  super-server, runs  continuously.  When  a 
+request for [echo] server arrives, the super-server starts the  [echo]
+server.  The name of the super-server in your host might be [ inetd ].
+[xinetd] is another super-server, with more features.
+
+Find out the name of the super-server running in your host
+$ ps ax | grep inetd
+
+Name of super-server _____________
+PID of super-server  _____
+
+The file [ /etc/inetd.conf ] is the configuration file of this server.
+You  have to make changes to this file, to activate the [echo]  server
+using TCP protocol.
+
+Save the system file
+$ cp   /etc/inetd.conf   $HOME/etc-inetd.conf.$(date +%s)
+
+Modify the system file
+# nano /etc/inetd.conf
+
+
+If  the server is not activated, the relevant line would be commented,
+as shown below
+
+#echo            stream  tcp     nowait  root    internal
+
+
+To activate the server uncomment the line as shown below
+
+echo            stream  tcp     nowait  root    internal
+
+Save the file.
+
+To  notify [ inetd ] that a change has been made to its  configuration
+file, SIGHUP signal to be sent to it, using [kill] command
+
+# kill -SIGHUP PID-of-inetd
+             OR
+# kill -HUP PID-of-inetd
+
+Now it should be possible to connect to the [ echo ] server, using TCP
+protocol.  To do this,  the TCP protocol port the [ echo ]  server  is
+listening  on,  is to be known. Standard  protocol  port  numbers  are
+assigned to different services. These are known as [Assigned Numbers].
+
+Find out the port number
+
+$ less /etc/services
+
+        OR
+
+$ less /etc/services | grep echo
+
+
+[ echo ] server using TCP, uses TCP port number 7.
+
+
+Now you can connect to the [echo] server running on your host
+$ telnet  127.0.0.1  7
+
+You  can enter a string and [ echo ] server would echo it back to your
+screen. 
+
+Press CTRL ] to exit [echo] server
+
+telnet>
+
+Press q to exit [telnet] session.
+
+
+5-tuple association for a network communication:
+                                                        When two hosts
+communicate over computer network the following association is needed.
+
+Protocol  Local-Address  Local-Port  Foreign-Address  Foreign-Port
+
+
+To verify the above, you may use the [echo] server, using TCP, running
+on your host
+
+Login in terminal 3 and connect to the [echo] server
+T-3 $ telnet 127.0.0.1 7
+
+Do not close connection.
+
+Login in terminal 4 and find out the full path of [netstat] command
+T-4 $ whereis  -b  netstat
+
+Assuming [/bin/netstat] as path, verify the TCP connections to or from
+this host
+T-4 $ /bin/netstat -tn
+
+[-t] stands for TCP and [-n] stands for numeric output
+
+The following is an edited representative output
+
+Proto      Local Address           Foreign Address
+tcp        127.0.0.1:7             127.0.0.1:1033
+tcp        127.0.0.1:1033          127.0.0.1:7
+
+
+Since server and client are on the same host, 127.0.0.1 is the Foreign
+Address and also Local Address.  The two ports are 7 and 1033.  Port 7
+is  assigned to [ echo ] server and port 1033 is not  assigned to  any
+service. 1033 is called a free port or ephemeral port.
+
+Login in terminal 5 and make another connection to the [echo] server
+T-5 $ telnet 127.0.0.1 7
+
+Do not close the connection.
+
+Go back to terminal four and check TCP connection
+
+T-4 $ /bin/netstat -tn
+
+Proto      Local Address           Foreign Address
+tcp        127.0.0.1:7             127.0.0.1:1034
+tcp        127.0.0.1:1034          127.0.0.1:7
+tcp        127.0.0.1:7             127.0.0.1:1033
+tcp        127.0.0.1:1033          127.0.0.1:7
+
+It  is seen that the two network communication match in  4 tuples. The
+ephemeral ports 1033 and 1034 make the connections unique.
+
+Exit [echo] server and [telnet] session in Terminal 3 and 5.
+
+
+The  5-tuple  association may be verified with another  host.  Request
+your friend to add one line in [/etc/hosts.allow] file.
+
+ALL : ALL
+
+This entry turns off [tcpd] access control in your friend's host. Make
+similar  changes in your host, so that your friend can connect to your
+host.
+
+In Terminal-3, connect to to friend's [echo] server using TCP. Replace
+192.16.5.36 with actual address
+T-3 $ telnet 192.16.5.36
+
+Do not terminate connection
+
+In Terminal-4, check the TCP connections
+T-4 $ /bin/netstat -tn
+
+Fill the following table
+
+Protocol  Local-Address  Local-Port  Foreign-Address  Foreign-Port
+
+
+
+End [echo] and [telnet] sessions in Terminal-3.
+
+
+
+
+The  configuration files of different programs are stored under [/etc]
+directory.
+
+Example:
+        Find out the name of your host
+$ uname -n
+hostname--->
+
+The file [ /etc/hostname ] stores this information. Check the contents
+of that file. 
+$ less /etc/hostname
+
+One of the [init] scripts reads the file to set the hostname. 
+
+Change  the name of your host to [it-44].  Save a copy of the file and
+then make changes
+$ cp /etc/hostname $HOME/etc-hostname.$(date +%s)
+# nano /etc/hostname
+
+Comment  the existing name and enter the new name in the next line  as
+shown below.
+
+#-- /etc/hostname --
+# existing-host-name
+IT-44
+#-------------------
+
+Save the file.
+
+On  next reboot the hostname would be  changed. The  relevant [ init ]
+script can also be run to make the change without a reboot.
+# /etc/init.d/hostname.sh
+
+Verify the result. Change to another terminal, such as Terminal-5  and
+check  the [ login ] prompt. If it includes a hostname, the change  of
+hostname should be reflected in [login] prompt.
+
+Restore the original hostname by editing [ /etc/hostname ] and running
+the script [/etc/init.d/hostname.sh]. Verify the result.
+
+
+Example:
+          The IP address of your host is stored in another system file 
+[/etc/network/interfaces].
+
+A simple representative entry is shown below.
+$ less /etc/network/interfaces
+
+#--/etc/network/interfaces--
+iface lo inet loopback
+auto lo
+
+iface eth0 inet static
+    address 192.168.5.15
+    netmask 255.255.255.0
+auto eth0
+#---------------------------
+
+Change the IP address to 192.168.5.167
+
+$ cp  /etc/network/interfaces $HOME/etc-network-interfaces.$(date +%s)
+
+# nano /etc/network/interfaces
+
+#--/etc/network/interfaces--
+iface lo inet loopback
+auto lo
+
+iface eth0 inet static
+    #address 192.168.5.15
+    address 192.168.5.167
+    netmask 255.255.255.0
+auto eth0
+#---------------------------
+
+Save  the file.  The address would be changed on  next reboot. Run the
+relevant [init] script
+# /etc/init.d/networking restart
+
+Verify the changes.
+# ifconfig
+
+Assignment-1: 
+                   Restore the original IP address by editing the file
+[/etc/network/interfaces].
+
+Assignment-2:
+                  Restore the original IP address by copying the saved
+file.
+
+Command-->
+
+Optional Assignment:
+                     Take up this assignment only if you are confident
+to do Assignment-2.
+
+Record the broadcast address
+# ifconfig
+
+Broadcast address-->
+
+Read manual of [ interfaces ] to find out how to change the  broadcast
+address
+$ man interfaces
+
+
+Change broadcast address to 192.168.5.0
+
+Verify changes.
+
+Restore original broadcast address
+
+End of optional assignment.
+
+
+
+Sniffer - These  are  surreptitious  monitoring  programs that  gather
+          information on computer network.  Such tools are also  known
+          as  protocol analysers.  By default,  computers  listen  and
+          respond to packets addressed to them.  It is possible to put
+          the  network interface of a computer in  "promiscuous mode".
+          In this condition, the computer can capture and monitor  all
+          network  that  pass across its interfaces,  irrespective  of
+          their marked destination.
+
+          [tcpdump],  [Ethereal] and [tethereal] are sniffer programs.
+          [snort] is Network Intrusion Detection System, but it can be
+          used as a sniffer.
+
+          Sniffer can:
+                        Capture plain text passwords
+                        Capture confidential information
+                        Breach security of a network
+                        Detect network malfunction
+
+          Sniffer  poses  a threat in the hands of hacker and benefits
+          System Administrators, as a network traffic analyser.
+
+          tcpdump   -  This sniffer runs in text terminal.
+          Ethereal  -  This sniffer runs in GUI.
+          tethereal -  It is text terminal version of [Ethereal].
+
+
+In this laboratory you are going to write simple network communication
+programs.  To understand the working of those programs,  [ tethereal ]
+utility may be used.
+
+Check if the software is available in your PC.
+$ dpkg -l | grep tethereal
+
+It is to be installed, if it is not available.
+
+Note: [ dpkg ]  is a Debian Linux specific command.  Other  Linux
+      distributions have their equivalent commands, such as [rpm]
+      in Redhat Linux.
+
+Bring  the following software packages in [ intro ] directory from the
+laboratory FTP server or NFS.
+
+libglib1.2_1.2.10-4_i386.deb
+ethereal-common_0.9.4-1woody8_i386.deb
+tethereal_0.9.4-1woody8_i386.deb
+tcpdump_3.6.2-2.8_i386.deb 
+nmap_2.54.31.BETA-1_i386.deb
+
+Note: The location of these files on a set of 7 CDs are:
+
+pool/main/g/glib1.2/libglib1.2_1.2.10-4_i386.deb              (CD-1)
+pool/main/e/ethereal/ethereal-common_0.9.4-1woody8_i386.deb   (CD-2)
+pool/main/t/tcpdump/tcpdump_3.6.2-2.8_i386.deb                (CD-2)
+pool/main/n/nmap/nmap_2.54.31.BETA-1_i386.deb                 (CD-2)
+pool/main/e/ethereal/tethereal_0.9.4-1woody8_i386.deb         (CD-7)
+
+Install  the  softwares  in the  following  sequence. The sequence  is
+important as one software depends on another.
+
+# dpkg -i libglib1.2_1.2.10-4_i386.deb
+# dpkg -i ethereal-common_0.9.4-1woody8_i386.deb
+# dpkg -i tethereal_0.9.4-1woody8_i386.deb
+
+If  the  above  steps  fail  due  to  dependence  on  other  programs,
+the  missing programs are to be installed individually or [ deselect ]
+utility  program  may be used. This is another  Debian Linux  specific
+program.  This  command can detect dependency and install the  related
+programs. This is a menu based program and the set of  7 CDs should be
+available.
+
+# deselect
+
+After installation check the status of [tethereal]
+$ dpkg -s tethereal
+
+Run [tethereal] to capture all network packets seen by eth0  interface
+of  your host,  with  TCP protocol  and  with source  and  destination
+address of your host. Replace 192.166.5.15 with actual address of your
+host. The command is to be run as [root] user, to put the interface in
+"promiscuous" mode.
+
+T-1 # tethereal -i eth0  tcp and host 192.166.5.15
+
+Note from the output that eth0 interface enters "promiscuous" mode for
+packet capture. The [-i] option specify the interface used for  packet
+capturing. If the command were used as
+
+T-1 # tethereal -i eth0
+
+all  packets would be captured.  To selectively capture packets one is
+interested in,  "packet filter expression"  is to be used. The  string
+"tcp and host 192.166.5.15" is the packet filter expression.
+
+
+In  another terminal, connect to [ echo ] server using TCP, running on
+another host.
+
+T-2 $ telnet dhoni 7
+
+Terminate [echo] and [telnet] session.
+
+Go  back to  Terminal-1  and  examine  the  network packets  exchanged
+between your host and the other host.
+
+Press CTRL-C to stop [tethereal].
+
+You  may read  manual of [ tcpdump ] for  packet  filter  expressions.
+Install [tcpdump]. 
+# dpkg -i ./tcpdump_3.6.2-2.8_i386.deb
+
+
+[tethereal]  can also be used to store the packets in a binary file in
+a particular format. The binary file can be changed to a text file  to
+examine each packet in detail.
+
+Capture packets on [ eth0 ] interface to match [telnet] session to and
+from  your  host. Store the  captured packets in a file [ xx ] in  the 
+current directory. Replace 192.168.5.142 with your IP address.
+
+T-1 # tethereal -i eth0 -w ./xx tcp and host 192.168.5.142 and port 23
+ 
+Keep this program running.
+
+[telnet] to another host, such as 192.168.5.144, from another terminal
+T-2 $ telnet 192.168.5.144 
+
+Terminate [tethereal] with SIGINT
+T-1 # CTRL-C
+
+Check the file [xx]
+T-1 # file ./xx
+      OR
+T-1 $ file ./xx
+
+Convert the binary file to a text file
+T-1 #  tethereal -V -r ./xx  > ./yy
+
+Examine the text file [yy]
+
+T-1 $ less ./yy
+
+
+Scanner         -  A  scanner is a security tool that detects computer
+                   system's possible vulnerabilities.
+
+System scanner  -  A system scanner scans localhost for security holes
+                   such as:
+                           Lax or erroneous file permissions
+                           Default accounts
+                           Erroneous or duplicate UID entries
+
+Network scanner -  Network  scanners use network  connections to  test
+                   hosts  and  probe  available  services  and  ports,
+                   looking  for  well-known  weaknesses,  that  remote
+                   attackers can exploit.
+
+Example: [nmap] is network scanner.
+
+
+Check status of [nmap]
+
+$ dpkg --status nmap | more
+
+
+[nmap] may be installed or replaced with...
+
+# dpkg -i nmap_2.54.31.BETA-1_i386.deb
+
+Some simple uses of [nmap] are shown below
+
+Scan TCP ports of host 192.168.5.146.
+# nmap -sT 192.168.5.146
+      
+Scan UDP ports of your host 192.168.5.147
+# nmap -sU 192.168.5.147
+
+Which hosts are UP in the  range 192.168.5.140 to 192.168.5.148 ? Ping
+scan is used in this case.
+# nmap -sP  192.168.5.[110-120]
+
+Scan host 192.168.5.148 and try to guess the operating system
+# nmap -sT -O  192.168.5.148
+
+Scan port 7,  ports 30 to 40 and all ports greater than 65000  of host
+192.168.5.146
+#  nmap -sUT -p 7,30-40,65000-  192.168.5.146
+
+Assignment: 
+              The following files and programs were introduced in this
+experiment.  Write one or two line description of each.  You may  read
+the manual pages, such as [ $ man inittab ].
+
+/etc/inittab -->
+
+ifconfig -->
+
+/etc/nsswitch.conf -->
+
+/etc/hosts -->
+
+/etc/resolv.conf -->
+
+route -->
+
+inetd -->
+
+/etc/inetd.conf -->
+
+/etc/services -->
+
+netstat -->
+
+ping -->
+
+telnet -->
+
+telnetd -->
+
+/etc/hosts.allow -->
+
+/etc/hostname -->
+
+/etc/network/interfaces -->
+
+/etc/init.d/hostname.sh -->
+
+/etc/init.d/networking restart -->
+
+tethereal -->
+
+nmap -->
+
+                         --------------------
+
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+----------------------- end of it-net-intro.txt ----------------------

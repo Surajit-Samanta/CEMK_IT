@@ -1,0 +1,1162 @@
+College of Engineering and Management, KOLAGHAT
+Computer Network Laboratory ( 6th Semester 2025, IT ) 
+Experiment: TCP and UDP echo clients ( Filename - socket2.txt )
+
+Name: __________________________________________________________
+
+Roll No: ______________________  Date: _________________________
+
+
+Documents to read:
+                  1.  UNIX Network Programming
+                      By W. Richard Stevens
+                      Chapter-6, on Berkeley Sockets
+
+                  2.  Manuals socket(2), ip(7),
+                              tcp(7) and udp(7)
+
+     
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Create  directory [socket2] in your home directory. Get  [socket2.txt]
+in  [ socket2 ] directory, from laboratory FTP server. Assignments are
+to be carried out in this directory.
+
+T-2 $ mkdir $HOME/socket2
+T-2 $ cd $HOME/socket2
+
+In this experiment you have to write TCP [ echo ] client programs  and
+UDP [ echo ] client programs.  A few internal servers ( echo, daytime,
+time etc etc ) run on a host, using  TCP and UDP  protocols.  Internal
+TCP [ echo ] server and UDP [ echo ] server  will be used to  test the
+[ echo ] client programs written by you.
+
+Port number seven is assigned to [echo] servers. The following command
+and part of the possible output is shown...
+T-2 $  cat /etc/services | grep echo
+echo            7/tcp
+echo            7/udp
+
+However the [ echo ] servers can be disabled by commenting appropriate
+lines in file [ /etc/inetd.conf ].
+
+Servers  running in a host usually accept client's request  on all its
+interfaces.
+
+Scan ports 7 ( TCP and UDP ) of the loopback interface. 
+T-5 # nmap -sTU 127.0.0.1 -p 7
+
+Scan ports 7 ( TCP and UDP ) of the eth0 interface.
+T-5 # nmap -sTU IP-address-of-your-eth0-interface  -p 7
+
+Note:   The string "IP-address-of-your-eth0-interface" is shortened to
+        "IP-of-your-eth0" to save typing!
+
+If ports 7 ( using TCP and UDP ) are not "open" in your host, they are
+to be enabled by editing file [/etc/inetd.conf] and sending SIGHUP  to
+[inetd] process. 
+
+Edit [/etc/inetd.conf] if required and make needed changes.
+T-5 # nano /etc/inetd.conf
+
+Send SIGHUP to [inetd] process.
+T-5 # kill -SIGHUP pid-of-inetd
+
+Scan ports 7 ( TCP and UDP ) to confirm that they are "open".
+T-5 # nmap -sTU 127.0.0.1 -p 7
+T-5 # nmap -sTU IP-of-your-eth0 -p 7
+
+If  entry for [echo] server is missing in [ /etc/inetd.conf ], add the
+two lines shown below.
+
+T-5 #  nano /etc/inetd.conf
+
+#-----------------------  /etc/inetd.conf ----------------------
+
+echo                    stream  tcp     nowait  root    internal
+echo                    dgram   udp     wait    root    internal
+.
+.
+#-------------------- end of /etc/inetd.conf -------------------
+
+Then send SIGHUP to [inetd] to make it re-read its configuration file.
+T-5 # kill -HUP pid-of-inetd
+                                 OR
+T-5 # update-inetd --enable echo
+
+Then scan port 7 of [ lo ] and [ eth0 ] to confirm.
+T-5 # nmap -sTU 127.0.0.1 -p 7 
+T-5 # nmap -sTU IP-of-your-eth0 -p 7
+
+Request  your friend to scan TCP and UDP ports 7 of your host. The two
+ports should appear to be "open" to your friend, if the two servers of
+your host is accepting [ echo ] requests on your eth0 interface. 
+friend #  nmap -sTU IP-of-your-eth0 -p 7
+
+Try  to  connect  to port 7 of eth0 interface of your host, using  TCP
+protocol. [ telnet ]  program may be used to establish the connection.
+This  program is the user interface to the [TELNET] protocol. The next
+command uses [ 7 ] as the 2nd argument, to specify the port.
+
+Note:  If 2nd argument is omitted, default port number 23 is used
+       by [ telnet ] program.  [telnetd] used TCP port number 23.  
+
+T-2 $ telnet  IP-of-your-eth0  7
+Trying IP-of-your-eth0...
+Connected to IP-of-your-eth0
+Escape character is '^]'.
+Are you the echo server ?    <-- Enter a string
+Are you the echo server ?
+
+End session with CTRL-] and then [q].
+
+[ netcat ]  program may also be used test  TCP  echo server. Enter any
+string to test. Press CTRL-C to exit.
+T-2 $ nc -t  IP-of-your-eth0   7 
+
+Option [ -t ] uses TCP protocol.
+
+You can check TCP [ echo ] server of your friend  and  your friend can
+check your TCP [ echo ] server in the same way.
+
+Packets  generated to establish TCP connection is examined next.
+
+[tshark]  is a sniffer program. This is used to capture packets "seen"
+by your eth0 interface.
+T-5 # tshark -i eth0  -p tcp and host IP-of-your-eth0
+
+Option [ -i ] specify the interface to capture packets,  option [ -p ]
+selects  packets  carrying  TCP protocol. [ host ] is a packet  filter
+expression  to  select  packets with source or destination  address of
+IP-of-your-eth0.  A  large  number of packets are seen  by  your  eth0
+interface.  Among  these packets, those matching the above description
+are captured. 
+
+Request  your friend to connect to your TCP echo server.  No string is 
+to be  entered  by your friend, to  examine  packets  which  establish
+connection.
+friend T-2 $ telnet  IP-of-your-eth0  7
+
+Go back to T-5 to examine packets captured. Edited output might be:
+
+IP-of-friend's-eth0 -> IP-of-your-eth0          TCP 42571 > echo [SYN]
+IP-of-your-eth0 -> IP-of-friend's-eth0    TCP echo  > 42571 [SYN, ACK]
+IP-of-friend's-eth0 -> IP-of-your-eth0          TCP 42571 > echo [ACK]
+3 packets captured
+
+Ephemeral  port 42571, shown  above,  is likely  to be  different. The
+above  output  shows  three-way handshake  for  establishment  of  TCP
+connection.
+ 
+Request your friend to enter a string.
+Check number of packets captured in Terminal-5. 
+Number of packets captured for one TCP echo (request and reply)-->
+
+Request your friend to close the connection.
+
+Terminate [tshark] in your host.
+T-5  CTRL-C
+
+
+
+Use  [ netcat ] to check the UDP [ echo ] server running in your host.
+Enter a string to receive an echo. Terminate with CTRL-C.
+T-2 $ nc  -u  IP-of-your-eth0  7
+
+Option [ -u ] uses UDP protocol.
+
+To check the number of packets exchanged for one UDP echo (request and
+reply) [ tshark ] is used with option to capture UDP packets.
+T-5 # tshark -i eth0  -p udp and host IP-of-your-eth0
+
+Request  your friend to test UDP [ echo ] server running on your host.
+A  string  is to  be entered, then  CTRL-C  are to be pressed by  your
+friend. 
+friend T-2 $ nc  -u  IP-of-your-eth0  7
+
+Examine packets captured in T-5. Edited output might be:
+
+IP-of-friend's-eth0 -> IP-of-your-eth0        UDP Source port: 32773  
+Destination port: echo
+IP-of-your-eth0     -> IP-of-friend's-eth0    UDP Source port: echo
+Destination port: 32773
+2 packets captured
+
+Note: ephemeral port 32773 is likely to be different.
+
+Number of packets captured for one UDP echo (request and reply)-->
+
+
+
+
+TCP [ echo ] client:
+                     The system calls to be executed by the client and
+server,  for  connection oriented protocol,  are repeated below,  from
+[socket1.txt]. TCP is a connection oriented protocol.
+
+
+ 
+            SERVER
+              |                                       CLIENT
+ socket(), bind(), listen(), accept()                   |
+                                                     socket()
+              |        connection establishment         |
+              |<-----------------------------------> connect()
+              |                                         |
+            read() <-------------------------------- write()
+              |        data (request from client)       |
+              |                                         |
+   process client's request                             |
+              |                                         |
+           write()-----------------------------------> read()
+                       data (reply from server)
+
+
+                               Figure-1
+
+
+The program [f1.c] is the TCP [echo] client.  This program has to call
+[socket]  and  [connect] calls to establish connection with a  server. 
+Then  the client sends request to server and reads reply from  server.
+
+In [ f1.c ] the IP address of the [ echo ] server and TCP port of  the
+[echo]  server are supplied as arguments to the program.  We know that
+assigned number of [echo] server is 7. However we will use port number
+as an  argument  to the client program.  Such a client program can  be
+used to  connect to experimental [ echo ] servers using a non standard
+port.
+
+
+Save the following file as [f1.c]
+//--------------------------------------------------------------------
+// file-name f1.c   TCP echo client
+// usage -> program-name  server-address  server-port
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define  BUFFERSIZE     1024   // arbitrary
+
+
+int main(int argc, char *argv[])
+{
+  int                   sd;  // to be used as socket descriptor
+  ssize_t               i,j;
+  int                   n; 
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr;    // An IPv4 address
+
+  if( argc != 3 )
+  {
+    printf("Usage:   %s server-address  server-port \n", argv[0] );
+    printf("Example: %s 172.16.4.11   12345 \n", argv[0] );
+    exit(1);
+  }
+  
+  printf( "TCP-echo-client starting...\n" );
+
+  // A TCP (IPv4 stream) socket is created
+  sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( sd == -1 ) { perror("socket-call"); exit( 1 ); }
+
+  /*
+    The descriptor [sd] is not useful now. This is to be connected to
+    server's  address with [ connect() ] system call.  Before  making
+    this  call, the  members of  structure [ server_addr ] are to  be
+    initialised.
+
+    An  IPv4  socket  address  is defined as a  combination of  an IP
+    interface address and a port number, using a protocol.
+
+    IPv4 address is a structure [ struct sockaddr_in ]
+
+    The structure has the following members:
+
+    struct sockaddr_in {
+     sa_family_t            sin_family; // address family: AF_INET
+     u_int16_t              sin_port;   // port in network byte order
+     struct       in_addr   sin_addr;   // Internet address
+    };
+
+     Internet address:
+ 
+     struct in_addr {
+        u_int32_t      s_addr;    // address in network byte order
+     };
+     You may read manual [ ip(7) ].
+
+     The variable [server_addr], used by you, is an instance of the
+     structure  [ sockaddr_in ]. This has a size of 16 bytes.
+
+     server_addr.sin_family     uses 2 bytes
+     server_addr.sin_port       uses 2 bytes
+     server_addr.sin_addr       uses 4 bytes
+
+     Other 8 bytes are not used and are set to zero. The  following
+     statement may be used to verify the size of unused portion.
+     printf("Unused = %u bytes\n", sizeof(server_addr.sin_zero) );
+  */
+
+
+  // First member of structure [ server_addr ] is initialised with the
+  // address family consistent with the protocol family of the socket.
+  server_addr.sin_family = AF_INET;
+
+  /*
+     The  port number is to be converted from  host byte order  to
+     network byte order. Network byte order is big endian, whereas
+     host byte order may be little endian or big endian.  In  your
+     PC ( i80x86 ) host byte order is little endian.
+     The function [ htons() ] is used to convert port number  from
+     host byte order to network byte order. Even if the  host byte
+     order is big endian, calling [htons()] is not a mistake.
+     You may read manual [ htons(3) ].
+
+     argv[2] is the port number in our program.
+  */
+
+  // Second member of structure [server_addr] is initialised     
+  server_addr.sin_port = htons( atoi(argv[2]) );
+
+
+  /*
+     Internet  host  address given as  standard  numbers-and-dots
+     notation is to be  converted into binary data  and  is to be 
+     stored  as  the [ server_addr.sin_addr ] of  [ server_addr ]
+     structure.
+     The function [inet_aton()] is used to do that. This function
+     returns nonzero if the address is valid, zero if not.
+     You may read manual [ inet_aton(3) ].
+  */
+
+  // Third member of structure [server_addr] is initialised.
+  // argv[1] is the server address in dotted decimal quad
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("inet_aton-Invalid address\n"); exit(1); }
+
+
+  n = connect( sd, (struct sockaddr *) &server_addr,
+               sizeof(server_addr) );
+  if( n == -1 ) { perror("connect-call"); exit(1); }
+  /*
+  The descriptor [sd] is now connected to server's socket. If an
+  endless loop is used at this point of this program, connection
+  establishment may be checked with [netstat] command.
+  */
+
+  /* 
+  [bind()] system call was not called on [sd] before [ connect() ]
+  system call. As [connect()] was called on a unbound socket, [sd]
+  was automatically bound to a random free port ( ephemeral port )
+  with the local address set to [INADDR_ANY] ( all interfaces ).
+  */
+
+  write( STDOUT_FILENO, "Enter the string:", 17 );
+
+  // clear buffer before reading
+  memset( buffer, '\0', BUFFERSIZE );
+  i = read( STDIN_FILENO, buffer, BUFFERSIZE );
+  if( i == -1 ) { perror("read1"); exit(1); }
+  printf( "bytes read from keyboard=%u\n", i );
+
+  // write contents of buffer on server's socket
+  j = write( sd, buffer, i );
+  if( j == -1 ) { perror("write1"); exit(1); }
+  printf("bytes written in server's socket=%u\n",j);
+
+  // clear buffer before reading
+  memset( buffer, '\0', BUFFERSIZE );
+  // read from server's socket into buffer
+  i = read( sd, buffer, BUFFERSIZE );
+  if( i == -1 ) { perror("read2"); exit(1); }
+  printf("bytes read from server's socket=%u\n", i );
+
+  write( STDOUT_FILENO,"Reply from echo server->", 24 ); 
+  j = write( STDOUT_FILENO, buffer, i );
+  if( j == -1 ) { perror("write2"); exit(1); }
+
+  // Shutdown the both-way ( duplex ) connection.
+  shutdown(sd, SHUT_RDWR);
+
+  return 0;
+}
+//--------------------------------------------------------------------
+
+Assignment-1:
+
+T-2 $ jpico f1.c
+
+Compile....
+T-2 $ gcc -Wall ./f1.c -o ./one
+
+Run the program using wrong number of arguments, to see usage message.
+T-2 $ ./one
+T-2 $ ./one 172.16.4.11
+
+Run  the program  to  connect to the [ TCP echo ] server of your host,
+listening on loopback interface. 
+T-2 $ ./one  127.0.0.1  7
+
+Run  the program  to  connect to the [ TCP echo ] server of your host,
+listening on eth0 interface.
+T-2 $ ./one  IP-of-your-eth0  7
+
+Run  the  program  to connect  to the [ TCP echo ]  server running  on
+friend's host. No string is to be entered by you now.
+T-2 $ ./one  IP-of-friend's-eth0  7
+
+Check  TCP  connection establishment in another terminal. The  options
+[a], [t], [n] and [p] stand for all, TCP,  numeric output and  program
+name respectively.
+T-5 # netstat -atnp | grep one-a
+
+From the output, record the lines related to your program
+
+Proto   Local Address   Foreign Address  State      PID/Program name
+
+
+
+Ephemeral port __________ was used by the client program.
+
+Terminate the client program.
+T-2 $ CTRL-C
+
+Try to connect to TCP [echo] servers running on different hosts...
+T-2 $  ./one   192.168.5.251  7
+T-2 $  ./one   192.168.5.252  7
+T-2 $  ./one   192.168.5.160  7
+T-2 $  ./one   172.16.1.100   7
+T-2 $  ./one   210.212.4.3    7
+
+
+Rename the executable [one] as [tcp-echo-client].
+T-2 $ mv ./one ./tcp-echo-client
+
+Create a directory [bin] under your home directory
+T-2 $ mkdir $HOME/bin
+
+Copy the executable in [bin] directory
+T-2 $ cp ./tcp-echo-client $HOME/bin/
+
+Include this [bin] directory in [PATH] environmental variable
+T-2 $ PATH=$PATH:$HOME/bin/
+
+Check the intended inclusion with...
+T-2 $ echo $PATH
+
+
+If the [ PATH ] is set correctly, you should be able to run the client
+program from any directory of your account.
+
+If  you intend to include this [ bin ] directory in PATH  variable, on
+every login, include the following line at the end of [.bash_profile],
+file, in your home directory.
+$ nano /$HOME/.bash_profile
+
+
+#--  .bash_profile  file  --
+.
+.
+.
+PATH=$PATH:$HOME/bin/
+#---------------------------
+
+Logout, then login in your account and try this...
+$ tcp-echo-client  127.0.0.1  7
+
+Earlier in this experiment you have examined packets exchanged between
+standard [ TCP echo ] server and [ telnet ] program.
+ 
+Packets  exchanged  between the  standard [ TCP echo ] server and  the
+[ TCP echo ] client program written by you, are to be examined.  
+
+Run [tshark] to capture TCP packets from and to your host.
+T-5 # tshark -i eth0 -p tcp and host IP-of-your-eth0
+
+
+Test standard [TCP echo] server of your friend. Enter a string.
+T-2 $ tcp-echo-client  IP-of-friend's-eth0   7
+
+
+Examine packets exchanged in [tshark] terminal.
+
+Number of packets captured =
+
+Terminate [tshark]
+T-5 CTRL-C
+
+
+
+Examine  each packet to add arrow head to indicate direction of packet
+movement.
+
+             client    Put arrow head     server
+
+1st packet             --------------    
+2nd packet             --------------
+3rd packet             --------------
+4th packet             --------------
+5th packet             --------------
+6th packet             --------------
+7th packet             --------------
+8th packet             --------------
+9th packet             --------------
+10th packet            --------------
+
+End of Assignment-1.
+
+
+
+UDP [echo] client:
+
+The system calls using a connection-less protocol is shown below.
+( From "UNIX Network Programming" by W.Richard Stevens ).
+
+            SERVER
+              |
+           socket()
+              |
+            bind()                                         CLIENT
+              |                                              |
+          recvfrom()                                      socket()
+              |                                              |
+     Blocks until data is                                  bind()
+     received from a client                                  |
+              |                  Request                     |
+          recvfrom()----------------<-------------------- sendto()
+              |                                              |
+      process request                                        |
+              |                                              |
+            sendto() --------------->------------------- recvfrom()
+                                  Reply                      
+ 
+
+                                 Figure-2                           
+
+
+[f2.c] is the UDP client program. From the above figure it is observed
+that [ f2.c ]  has to call [ socket() ], [ bind() ], [ sendto() ]  and 
+[ recvfrom() ] calls.
+
+In  connection-less communication, data are put into packets and  each 
+packet is an independent communication.  UDP packets may arrive at the
+destination  in wrong order or not at all.  If the packet  is lost  or
+there  is no  process to accept the data at the  destination  address,
+usually the sending end system does not get an indication. 
+
+
+
+Sending datagrams:
+                     Normally [ sendto() ] system call is used to send
+data to a datagram socket.
+
+Synopsis of [sendto()] call:
+
+  int  sendto( socket-fd, buffer, buffer-size, flag, dest-address,
+               dest-address-length )
+  
+  Number  of  bytes specified by [ buffer-size ] in [ buffer ] are
+  transmitted through the socket, specified by [socket-fd], to the
+  destination address  specified by [dest-address] having a length
+  [dest-address-length].
+
+  The [flag] argument is a bitwise-OR  of the following:
+
+  MSG_OOB        
+  MSG_DONTROUTE 
+
+  The flag argument may be zero if none of the above are used. For the
+  correct data types of the arguments, read manual [sendto(2)].
+
+  
+Receiving datagrams:
+                     Normally [recvfrom()] call is used to receive one
+datagram  from a socket.  This system call may also store the  address
+from which the datagram came. 
+
+[recvfrom()] call:
+
+  int  recvfrom( socket-fd, buffer, buffer-size, flag, src-address,
+                 src-address-length )
+
+  This  call  reads one  datagram  from  the  socket  specified  by
+  [ socket-fd ],in the buffer specified by [ buffer ].  The maximum 
+  number of bytes to be read are specified by [ buffer-size ].
+
+  The [src-address] and [ src-address-length ] specify the address,
+  the datagram came from.
+
+  For  full  description and data types of the arguments,  read the
+  manual of [recvfrom(2)]. 
+
+  Note: If there is no data present, [recvfrom()] call would block.
+
+  A  null  pointer  can be  used as  [ src-address ]  and  zero  as
+  [src-address-length] if this information is not needed.  [recv()]
+  call may be used in such situation.
+
+  The [read()] call may be used if [flag] argument is not essential. 
+
+
+In the following example a datagram is read in four different ways:
+
+  [recvfrom()] in full form( not essential for UDP client ),
+  [recvfrom()] in stripped form( not essential for UDP client ),
+  [recv()] ( not essential for UDP client ) and
+  [read()].
+
+
+In [f2.c], server address and server port number, are supplied  as two
+arguments to the program. 
+//--------------------------------------------------------------------
+// file-name  f2.c   UDP echo client
+// usage -> program-name  server-address  server-port
+
+#include    <stdio.h>
+#include    <unistd.h>
+#include    <stdlib.h>
+#include    <string.h>
+#include    <sys/socket.h>
+#include    <arpa/inet.h>
+
+#define     SIZE    512   
+
+// Uncomment the following definition to use [recvfrom()] call in
+// full form. 
+//#define   RECVFROM_FULL
+
+// Uncomment the following definition to use stripped [recvfrom()].   
+//#define   RECVFROM_STRIPPED
+
+// Uncomment the following definition to use [recv()] call
+//#define   RECV
+
+// Uncomment the following line to use [read()] call
+//#define   READ
+
+int main( int argc, char *argv[])
+{
+  int  sd;   // to be used as socket descriptor
+  int  n;    
+  ssize_t                i;       
+  char                   buffer[SIZE];  
+  struct   sockaddr_in   server_addr;
+  struct   sockaddr_in   client_addr;
+
+
+  #ifdef RECVFROM_FULL
+    // following  variables are used to illustrate use of
+    // [ recvfrom ] call in full form
+    struct      sockaddr_in   remote_addr;
+    socklen_t                 remote_addr_length;
+    unsigned    long          nbo;  
+    unsigned    long          hbo;  
+    char                      *host_addr;
+  #endif
+
+  if( argc != 3 )
+  {
+    printf("usage -> prog-name  server-address  server-port \n");
+    printf("example -> %s 192.168.5.58  7 \n", argv[0] );
+    exit(1);
+  }
+
+  // an IPv4 datagram socket (UDP socket) is created
+  sd = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP );
+  // zero may be used for IPPROTO_UDP
+  if( sd == -1 )  { perror("socket-call"); exit(1); }
+
+  // initialise members of the local address
+  client_addr.sin_family = AF_INET;
+  client_addr.sin_addr.s_addr = htonl( INADDR_ANY ); // all interfaces
+  client_addr.sin_port = htons(0); // any free port
+
+  // Bind the local address with the socket. This is needed as we are
+  // interested in a reply from the server. The server needs to  know
+  // our address to send a reply.
+  n = bind( sd, (struct sockaddr *) &client_addr,
+            sizeof(client_addr) );
+  if( n == -1 ) { perror("bind-call"); exit(1); }
+
+  write( STDOUT_FILENO,"Enter a string: ", 16 );
+  memset( buffer, '\0', SIZE );
+  i = read( STDIN_FILENO, buffer, SIZE );
+
+  // Initialise the members of remote address
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { perror("invalid-address"); exit(1); }
+  server_addr.sin_port = htons( atoi(argv[2]) );
+
+  // send contents of [buffer] to the remote address
+  n = sendto( sd, buffer, i, 0, ( struct sockaddr *) &server_addr,
+              sizeof( server_addr) );
+  if( n == -1 ) { perror("sendto-call"); exit(1); }
+
+  printf("%s: Sent %u bytes to server \n", argv[0], n);
+
+  n = 0;
+  // clear the buffer, before receiving from server
+  memset( buffer, '\0', SIZE );
+
+
+  #ifdef RECVFROM_FULL
+     printf("%s: Using recvfrom() call in full form \n", argv[0] );
+     remote_addr_length = sizeof(remote_addr);
+     n = recvfrom( sd, buffer,SIZE, MSG_PEEK,
+                   (struct sockaddr *) &remote_addr,
+                   &remote_addr_length );
+     if( n == -1 ) { perror("recvfrom-call-full"); exit(1); }
+
+     // Print the value of a symbolic constant we are interested in
+     printf("AF_INET = %u \n", AF_INET);
+
+     // [recvfrom()] system call has filled in members of the variable
+     // [remote_addr]. The values of the members are now retrieved.
+
+     printf("rf-full: remote address family = %u\n",
+             remote_addr.sin_family );
+
+     nbo = remote_addr.sin_addr.s_addr;
+     printf("rf-full: remote address in network byte order ");
+     printf("= %lX Hex \n",  nbo );
+
+     hbo = ntohl(remote_addr.sin_addr.s_addr);
+     printf("rf-full: remote address in host byte order = %lX Hex \n",
+             hbo );
+
+     host_addr = inet_ntoa(remote_addr.sin_addr);
+
+     printf("rf-full: remote address in dotted decimal quad = %s  \n",
+             host_addr );
+
+     printf("rf-full: remote port in network byte order = %X Hex \n",
+             remote_addr.sin_port );
+
+     printf("rf-full: remote port in host byte order = %X Hex\n",
+             ntohs(remote_addr.sin_port) );
+
+     printf("rf-full: remote address length = %u bytes\n",
+             remote_addr_length );                          
+  #endif
+
+
+  #ifdef RECVFROM_STRIPPED
+     printf("%s: Using recvfrom() call in stripped form\n", argv[0]);
+     // We are not interested to save remote address
+     n = recvfrom( sd, buffer,SIZE, 0, NULL, 0 );
+     if( n == -1 ) { perror("recvfrom-call-stripped"); exit(1); }
+  #endif
+
+  #ifdef RECV
+     printf("%s: Using recv() call \n", argv[0]);
+     // We are not interested to store remote address but want
+     // to use [flag] argument
+     n = recv( sd, buffer, SIZE, MSG_PEEK );
+     if( n == -1 ) { perror("recvfrom-call-stripped"); exit(1); }
+  #endif
+
+
+  #ifdef READ
+     printf("%s: Using read() call \n", argv[0] );
+     // We are not interested to store remote address and
+     // don't want to use [flag] argument
+     n = read( sd, buffer, SIZE);
+     if( n == -1 ) { perror("read-call"); exit(1); }
+  #endif
+
+  printf("%s: Received %u bytes from server \n", argv[0], n );
+  write( STDOUT_FILENO, "From server->", 13 );
+  write( STDOUT_FILENO, buffer, n );
+
+  shutdown( sd, SHUT_RDWR );
+
+  return 0;
+}
+//--------------------------------------------------------------------
+
+Assignment-2:
+
+T-2 $ jpico f2.c
+
+(a) Define only READ and compile
+T-2 $ gcc -Wall ./f2.c  -o  ./two-a
+
+Send a datagram to any UDP [echo] server
+T-2 $ ./two-a IP-of-your-eth0  7
+T-2 $ ./two-a  172.16.4.5  7
+
+Did the program run correctly ? ( Y / n )
+
+Send a datagram to a non-existent host
+T-2 $ ./two-a  192.168.5.245  7
+
+Was there any error indication ? ( y / N )
+Terminate with CTRL-C.
+
+(b) Define only RECV, comment other three and compile
+T-2 $ gcc -Wall ./f2.c  -o ./two-b
+
+Send a datagram to any UDP [echo] server
+T-2 $ ./two-b ./two-b  172.16.4.6  7  7
+T-2 $ ./two-b 192.168.5.149  7
+
+Did the program run correctly ? ( Y / n )
+
+(c) Define only RECVFROM_STRIPPED, comment other three and compile
+T-2 $ gcc -Wall ./f2.c  -o ./two-c
+
+Send a datagram to any UDP [echo] server
+T-2 $ ./two-c IP-of-your-eth0  7
+T-2 $ ./two-c  192.168.5.161  7
+
+Did the program run correctly ? ( Y / n )
+
+(d) Define only RECVFROM_FULL, comment other three and compile
+T-2 $ gcc -Wall ./f2.c  -o ./two-d
+
+Send a datagram to any UDP [echo] server
+T-2 $  ./two-d P-of-your-eth0 7
+T-2 $  ./two-d  172.16.4.5   7
+Enter a string: xxx
+
+A typical output may be:
+./two-d: Sent 3 bytes to server
+./two-d: Using recvfrom() call in full form
+AF_INET = 2
+rf-full: remote address family = 2
+rf-full: remote address in network byte order = 50410AC Hex  _________
+rf-full: remote address in host byte order = AC100405 Hex    _________
+rf-full: remote address in dotted decimal quad = 172.16.4.5  _________
+rf-full: remote port in network byte order = 700 Hex _______
+rf-full: remote port in host byte order = 7 Hex _______
+rf-full: remote address length = 16 bytes
+./a.out: Received 3 bytes from server
+From server->ll
+
+
+
+The above result is verified with the following steps:
+                                                        Decimal 172 is
+converted to binary with successive division with 2.
+
+2 | 172           Remainder
+  |-----
+2 |  86  -----    0           <------ LSB
+  |-----
+2 |  43  -----    0
+  |-----
+2 |  21  -----    1
+  |-----
+2 |  10  -----    1
+  |-----
+2 |   5  -----    0
+  |-----
+2 |   2  -----    1
+  |-----
+      1  -----    0
+     
+
+ Decimal     Binary          Hexadecimal
+     172     1010 1100       AC
+      16     0001 0000       10
+       4     0000 0100       04
+     167     0000 0101       05
+
+
+End of Assignment-2.
+
+
+[f2.c] is modified to make a simple UDP [echo] client. [read]  call is
+used to read from UDP socket.
+//------------------------------------------------------------------
+// file-name  f3.c   UDP echo client
+// usage -> program-name  server-address  server-port
+
+#include    <unistd.h>
+#include    <stdlib.h>
+#include    <stdio.h>
+#include    <string.h>
+#include    <sys/socket.h>
+#include    <arpa/inet.h>
+
+#define     SIZE    512   
+
+int main( int argc, char *argv[])
+{
+  int                     sd,n ; 
+  ssize_t                 i;       
+  char                    buffer[SIZE];  
+  struct    sockaddr_in   server_addr;
+  struct    sockaddr_in   my_addr;
+
+  if( argc != 3 )
+  {
+    printf("usage -> %s  server-address  server-port \n", argv[0] );
+    exit(1);
+  }
+
+  sd = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP );
+  if( sd == -1 )  { perror("socket-call"); exit(1); }
+
+  // initialise the local address
+  my_addr.sin_family = AF_INET;
+  my_addr.sin_port   = htons(0);
+  my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  
+  // bind the socket with the local address
+  n = bind( sd, (struct sockaddr *) &my_addr,sizeof(my_addr) );
+  if( n == -1 ) { perror("bind-call"); exit(1); }
+
+  write( STDOUT_FILENO, "Enter a string:", 15 );
+  memset( buffer, '\0', SIZE );
+  i = read( STDIN_FILENO, buffer, SIZE );
+
+   
+  // initialise the remote address
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons( atoi(argv[2]) );
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { perror("invalid-address"); exit(1); }
+  
+  // send contents of the [buffer] to remote address
+  n = sendto( sd, buffer, i, 0, ( struct sockaddr *) &server_addr,
+              sizeof( server_addr) );
+  if( n == -1 ) { perror("sendto-call"); exit(1); }
+
+  printf("%s: Sent %u bytes to server \n", argv[0], n );
+
+  memset( buffer, '\0', SIZE );
+  n = read( sd, buffer, SIZE);
+  if( n == -1 ) { perror("read-call"); exit(1); }
+
+  printf("%s: Received %u bytes from server \n", argv[0], n );
+  write( STDOUT_FILENO, "From server->", 13 );
+  write( STDOUT_FILENO, buffer, n );
+
+  shutdown( sd, SHUT_RDWR );
+
+  return 0;
+} // end of main
+//------------------------------------------------------------------
+
+Assignment 3:
+
+T-2 $ jpico f3.c
+
+Compile ...
+T-2 $ gcc -Wall ./f3.c -o ./udp-echo-client
+
+Test the client program with any UDP [echo] server
+T-2 $ ./udp-echo-client  IP-of-your-eth0  7
+T-2 $ ./udp-echo-client  192.168.5.251    7
+
+
+Move the executable in your [bin] directory
+T-2 $ mv ./udp-echo-client $HOME/bin/
+
+Check the above
+T-2 $ udp-echo-client IP-of-your-eth0  7
+
+
+Sniff [ eth0 ] interface for packets using UDP port 7, to or from your
+host. Captured packets are stored in binary file [xx].
+T-5 # tshark -i eth0 -n -w ./xx  host IP-of-your-eth0 and udp port 7
+
+Send a datagram to any UDP [echo] server, from another terminal
+T-2 $ udp-echo-client 172.16.4.5  7                
+
+Stop [[tshark]
+T-5 # CTRL-C
+
+Number of packets captured = ____
+
+Convert the binary file to text file using [tshark]
+T-5 # tshark -V -r ./xx > ./yy
+
+Examine the text file.
+T-5 # less ./yy
+
+End of Assignment 4.
+
+                      ----------------------------
+
+
+Optional Assignment-1:
+                       
+Write a TCP [echo] client by fleshing out skeletal program [ f4.c ].
+--------------------------------------------------------------
+// file-name f4.c TCP echo client
+// Usage: program-name  server-address  server-port
+
+// include headers based on compilation errors
+
+// define a suitable buffer-size
+#define    BUFFERSIZE   _____
+
+int main(int argc, char *argv[])
+{
+  int                   sd,n;
+  ssize_t               i,j;
+  char                  buffer[BUFFERSIZE];  
+  struct   sockaddr_in  server_addr;    // An IPv4 address
+
+  // check arguments for the program
+
+  // Create a  TCP ( IPv4 stream )  socket  
+
+  // Initialise the three members of the [server_addr]
+
+
+  // Connect to server's socket
+
+  // generate a prompt for the input string on standard output
+
+  // clear buffer before reading
+  memset( buffer, '\0', BUFFERSIZE );
+
+  // read a string from standard input
+
+  // print number of bytes read from standard input
+
+  // write contents of buffer in the socket
+
+  // print number of bytes written in socket
+
+  // clear buffer before reading from socket
+  
+  // read from the socket into buffer
+  
+  // printf number of bytes read from socket
+
+
+  // write contents of buffer on standard output
+
+  // Shutdown the both-way ( duplex ) connection.
+
+  return 0;
+} // end of main 
+--------------------------------------------------------------
+
+Compile the above skeleton program
+$ gcc -Wall ./f4.c -o ./four
+
+Ignore  warning regarding unused variables.  Remove  other warnings by
+including proper headers. 
+
+Then write one line of code and compile.  Remove  compilation error if
+any. In this way complete the program.
+
+
+Optional Assignment-2:
+                      Write a minimal UDP [echo] client program.
+
+
+Optional Assignment-3:
+                         UDP [echo] client program may use [connect()]
+system call. [read(2) and write(2)] are used on the UDP socket.  
+//-------------------------------------------------------------------
+// file-name  f5.c   UDP echo client ( using connect() call )
+// usage -> program-name  server-address  server-port
+
+#include    <stdio.h>
+#include    <unistd.h>
+#include    <stdlib.h>
+#include    <string.h>
+#include    <sys/socket.h>
+#include    <arpa/inet.h>
+
+#define     SIZE    512   
+
+int main( int argc, char *argv[])
+{
+  int  sd;   // to be used as socket descriptor
+  int  n;    
+  ssize_t                i, j;       
+  char                   buffer[SIZE];  
+  struct   sockaddr_in   server_addr;
+
+
+  if( argc != 3 )
+  {
+    printf("usage -> prog-name  server-address  server-port \n");
+    printf("example -> %s 192.168.5.58  7 \n", argv[0] );
+    exit(1);
+  }
+
+  // an IPv4 datagram socket ( UDP socket ) is created
+  sd = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+
+  write( STDOUT_FILENO,"Enter a string: ", 16 );
+  memset( buffer, '\0', SIZE );
+  i = read( STDIN_FILENO, buffer, SIZE );
+
+  // Initialise the members of remote address
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { perror("invalid-address"); exit(1); }
+  server_addr.sin_port = htons( atoi(argv[2]) );
+  
+
+  // connect to the remote address
+  n = connect( sd, (struct sockaddr *) &server_addr,
+               sizeof(server_addr) );
+  if( n == -1 ) { perror("connect"); exit(1); }
+
+  // send UDP packet to the remote address
+  j = write( sd, buffer, i );
+  if( j == -1 ) { perror("write-1"); exit(1); }
+
+  printf("Sent %u bytes to server \n", j);
+
+  // clear the buffer, before receiving from server
+  memset( buffer, '\0', SIZE );
+
+
+  i = read( sd, buffer, SIZE);
+  if( i == -1 ) { perror("read-call"); exit(1); }
+
+  printf("Received %u bytes from server \n", i );
+  write( STDOUT_FILENO, "From server->", 13 );
+  write( STDOUT_FILENO, buffer, i );
+
+
+  // To dissolve the current socket association,
+  // uncomment following two lines 
+  //server_addr.sin_family = AF_UNSPEC;
+  //connect(sd,(struct sockaddr *)&server_addr, sizeof(server_addr));
+
+  // try to send a datagram to server
+  j = write( sd, "Socket association is not dissolved\n", 36 );
+  if( j == -1 ) { perror("write-2"); exit(1); }
+
+  memset( buffer, '\0', SIZE );
+  i = read( sd, buffer, SIZE);
+  if( i == -1 ) { perror("read-call"); exit(1); }
+  write( STDOUT_FILENO, "From server->", 13 );
+  write( STDOUT_FILENO, buffer, i );
+
+  shutdown( sd, SHUT_RDWR );
+
+  return 0;
+} // end of main
+//-------------------------------------------------------------------
+
+Compile and run the program...
+T-2 $ gcc -Wall ./f5.c  -o ./five
+T-2 $ ./five  IP-of-your-eth0     7
+
+
+
+                -------------------------------------
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+---------------------- end of file socket2.txt -----------------------

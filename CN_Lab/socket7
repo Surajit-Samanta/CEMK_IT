@@ -1,0 +1,402 @@
+College of Engineering and Management, KOLAGHAT
+Data Communication Laboratory ( 6th Semester 2025, IT )
+Experiment: TCP talk server and client ( Filename - socket7.txt )
+
+Name: __________________________________________________________
+
+Roll No: ______________________  Date: _________________________
+
+
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Create directory [socket7] in your home directory. 
+T-2 $ mkdir ~/socket7
+T-2 $ cd    ~/socket7
+
+Bring [socket7.txt] in this directory using NFS.
+
+The following is a simple TCP [talk] server.
+---------------------------------------------------------------
+// file-name f1.c
+// TCP talk server
+// usage: program-name
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <unistd.h>
+#include  <stdlib.h>
+#include  <stdio.h>
+#include  <string.h>
+#include  <arpa/inet.h>
+#include  <signal.h>
+#include  <errno.h>
+
+#define   BUFFERSIZE   1024
+#define   PORT         65535
+
+extern    int          errno;
+
+int main ( void )
+{
+  int                  ser_sd, cli_sd;
+  struct  sockaddr_in  serv_addr;
+  int                  n;
+  char                 buffer[BUFFERSIZE];
+  char                 *name;
+  struct  sigaction    act;
+
+
+  act.sa_handler = SIG_IGN;
+  // SIGPIPE is ignored
+  n = sigaction( SIGPIPE, &act, NULL );
+
+  ser_sd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+
+  serv_addr.sin_family      = AF_INET;
+  serv_addr.sin_port        = htons( PORT );
+  serv_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+
+  n = bind( ser_sd, (struct sockaddr * ) &serv_addr, 
+            sizeof(serv_addr) );
+  if( n == -1 ) { perror("bind-call"); exit(1); }
+      
+  listen( ser_sd, 2 );
+
+  name = getenv("USER");
+
+  while(1)
+  {
+    printf( "\nWaiting to talk with a client on TCP port %u\n",
+            PORT ); 
+    cli_sd = accept( ser_sd, NULL, 0 );
+    if( cli_sd == -1 ) { perror("accept-call"); exit(1); }
+
+    memset( buffer,'\0', BUFFERSIZE);
+    sprintf(buffer,"%s's talk-server is ready\n", name );    
+    write( cli_sd, buffer, sizeof(buffer) );
+
+    while(1) 
+    {
+       memset( buffer,'\0', BUFFERSIZE);
+       n = read( cli_sd, buffer, BUFFERSIZE);
+       if( strstr( buffer, "quit" ) != NULL) break;
+       write(STDOUT_FILENO, "From client-> ", 14 );
+       write(STDOUT_FILENO, buffer, n );
+       memset( buffer,'\0', BUFFERSIZE);
+       write(STDOUT_FILENO, "To client---> ", 14 );
+       n = read(STDIN_FILENO, buffer, BUFFERSIZE);
+       write( cli_sd, buffer, n );
+       if( errno == EPIPE ) break;
+    }  // end of inner while block
+
+    shutdown( cli_sd, SHUT_RDWR );
+    close(cli_sd);
+
+  } // end of outer while block
+
+  //shutdown( ser_sd, SHUT_RDWR );
+  //close( ser_sd );
+  //return 0;
+}
+---------------------------------------------------------------
+Compile the server program
+T-2 $ gcc -Wall ./f1.c -o ./one
+
+The following is a simple TCP [talk] client program.
+--------------------------------------------------------
+// file-name  f2.c
+// TCP [talk] client
+// usage: program-name
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+
+#define  BUFFERSIZE   1024
+
+int main( void )
+{
+  int                    ser_sd;
+  struct   sockaddr_in   serv_addr;
+  int                    n;  
+  char                   buffer[BUFFERSIZE];
+  int                    port;
+  char                   address[20];
+
+  write( STDOUT_FILENO,"IP address of server ? ", 23 );
+  scanf( "%s", address );
+
+  write( STDOUT_FILENO,"port number of server ? ", 24 );
+  scanf("%u", &port );
+ 
+  ser_sd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port   = htons( port );
+  n = ( inet_aton( address, &serv_addr.sin_addr ) );
+  if( n ==0 )
+  {
+    printf("Address is invalid\n");
+    exit(1);
+  }   
+
+  n = connect( ser_sd, (struct sockaddr *) &serv_addr,
+               sizeof(serv_addr) );
+  if( n == -1 ) { perror("connect-call"); exit(1); }
+
+  printf("Enter <quit> to exit \n");
+  while(1)
+  {
+    memset( buffer, '\0', BUFFERSIZE);
+    n = read( ser_sd, buffer, BUFFERSIZE);
+    write(STDOUT_FILENO, "From server-> ", 14 );
+    write( STDOUT_FILENO, buffer, n );
+    write(STDOUT_FILENO, "To server---> ", 14 );
+    memset( buffer, '\0', BUFFERSIZE);
+    n = read( STDOUT_FILENO, buffer, BUFFERSIZE ); 
+    write(ser_sd, buffer, n );
+    if( strstr( buffer, "quit" )) break;
+  }
+  shutdown( ser_sd, SHUT_RDWR ); 
+
+  return 0;
+}
+--------------------------------------------------------
+Compile the client program
+T-2 $ gcc -Wall ./f2.c -o ./two
+
+Start the server
+T-2 $ ./one
+
+Request your friend to connect to your server
+friend T-2 $ ./two 
+
+Use your client program to connect to friend's server.
+
+[make] utility:
+                 Simple use [make] utility is illustrated by splitting
+the above programs. You may read it's manual. 
+$  man 1 make
+
+Prepare the following four files.
+T-2 $ nano header-common
+
+---------------------------
+// file-name header-common
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <unistd.h>
+#include  <stdlib.h>
+#include  <stdio.h>
+#include  <string.h>
+#include  <arpa/inet.h>
+
+#define   BUFFERSIZE   1024
+---------------------------
+
+---------------------------------------------------------------
+// file-name ser.c
+// TCP talk server
+// usage: program-name
+
+#include  "header-common"
+#include  <signal.h>
+#include  <errno.h>
+
+#define   PORT         65535
+
+extern int errno;
+
+int main ( void )
+{
+  int                    ser_sd, cli_sd;
+  struct  sockaddr_in    serv_addr;
+  int                    n;
+  char                   buffer[BUFFERSIZE];
+  char                   *name;
+  struct  sigaction      act;
+
+  act.sa_handler = SIG_IGN;
+  // SIGPIPE is ignored
+  n = sigaction( SIGPIPE, &act, NULL );
+
+  ser_sd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+
+  serv_addr.sin_family      = AF_INET;
+  serv_addr.sin_port        = htons( PORT );
+  serv_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+
+  n = bind( ser_sd, (struct sockaddr * ) &serv_addr, 
+            sizeof(serv_addr) );
+  if( n == -1 ) { perror("bind-call"); exit(1); }
+      
+  listen( ser_sd, 2 );
+
+  name = getenv("USER");
+
+  while(1)
+  {
+    printf( "\nWaiting to talk with a client on TCP port %u\n",
+            PORT ); 
+    cli_sd = accept( ser_sd, NULL, 0 );
+    if( cli_sd == -1 ) { perror("accept-call"); exit(1); }
+
+    memset( buffer,'\0', BUFFERSIZE);
+    sprintf(buffer,"%s's talk-server is ready\n", name );    
+    write( cli_sd, buffer, sizeof(buffer) );
+
+    while(1) 
+    {
+       memset( buffer,'\0', BUFFERSIZE);
+       n = read( cli_sd, buffer, BUFFERSIZE);
+       if( strstr( buffer, "quit" ) != NULL) break;
+       write(STDOUT_FILENO, "From client-> ", 14 );
+       write(STDOUT_FILENO, buffer, n );
+       memset( buffer,'\0', BUFFERSIZE);
+       write(STDOUT_FILENO, "To client---> ", 14 );
+       n = read(STDIN_FILENO, buffer, BUFFERSIZE);
+       write( cli_sd, buffer, n );
+       if( errno == EPIPE ) break;
+    }  // end of inner while block
+
+    shutdown( cli_sd, SHUT_RDWR );
+    close(cli_sd);
+
+  } // end of outer while block
+}   // end of main
+---------------------------------------------------------------
+
+--------------------------------------------------------
+// file-name cli.c
+// TCP [talk] client
+// usage: program-name 
+
+#include  "header-common"
+
+int main( void )
+{
+  int                    ser_sd;
+  struct   sockaddr_in   serv_addr;
+  int                    n;  
+  char                   buffer[BUFFERSIZE];
+  int                    port;
+  char                   address[20];
+
+  write( STDOUT_FILENO,"IP address of server ? ", 23 );
+  scanf( "%s", address );
+
+  write( STDOUT_FILENO,"port number of server ? ", 24 );
+  scanf("%u", &port );
+ 
+  ser_sd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(2); }
+
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_port   = htons( port );
+  n = ( inet_aton( address, &serv_addr.sin_addr ) );
+  if( n ==0 )
+  {
+    printf("Address is invalid\n");
+    exit(3);
+  }   
+
+  n = connect( ser_sd, (struct sockaddr *) &serv_addr,
+               sizeof(serv_addr) );
+  if( n == -1 ) { perror("connect-call"); exit(3); }
+
+  printf("Enter <quit> to exit \n");
+  while(1)
+  {
+    memset( buffer, '\0', BUFFERSIZE);
+    n = read( ser_sd, buffer, BUFFERSIZE);
+    write(STDOUT_FILENO, "From server-> ", 14 );
+    write( STDOUT_FILENO, buffer, n );
+    write(STDOUT_FILENO, "To server---> ", 14 );
+    memset( buffer, '\0', BUFFERSIZE);
+    n = read( STDOUT_FILENO, buffer, BUFFERSIZE ); 
+    write(ser_sd, buffer, n );
+    if( strstr( buffer, "quit" )) break;
+  }
+
+  shutdown( ser_sd, SHUT_RDWR ); 
+  return 0;
+}
+--------------------------------------------------------
+
+[ Makefile ] or [ makefile ] is needed by [make] utility. 
+----------------------------------------------------------------------
+# file-name Makefile
+
+install          : talk-server talk-client 
+
+# The above is a target line. The target name is [ install ].
+# Target [ install ] depends on files [talk-server] and [talk-client].
+# The following two lines are the rules to make the target [ install ].
+	/bin/cp  talk-server ~/bin/
+	/bin/cp  talk-client ~/bin/
+
+# Note: rules start with TAB.
+
+talk-server      : server.o
+	gcc -Wall server.o  -o talk-server
+
+server.o         : header-common f1.c
+	gcc -Wall -c ser.c  -o server.o
+
+talk-client      : client.o
+	gcc -Wall client.o  -o talk-client
+
+client.o         : header-common f2.c
+	gcc -Wall -c cli.c  -o client.o
+
+clean            :
+	if [ -f server.o ]; then /bin/rm  server.o; fi
+	if [ -f client.o ]; then /bin/rm  client.o; fi
+	if [ -f talk-server ]; then /bin/rm  talk-server; fi
+	if [ -f talk-client ]; then /bin/rm  talk-client; fi
+----------------------------------------------------------------------
+
+The above file has six targets.
+
+Compile  the  programs and install the executables under your  [ bin ]
+directory using [install] target.
+T-2 $ make install
+
+Check contents of your [ ~/bin ] directory
+$ ls -l ~/bin
+
+Remove object files and the two executables from current directory
+T-2 $ make clean
+
+You may use other targets
+T-2 $ make server.o
+T-2 $ make server.o
+T-2 $ make client.o
+T-2 $ make client.o
+T-2 $ make talk-server
+T-2 $ make talk-server
+T-2 $ make talk-client
+T-2 $ make talk-client
+
+You may [touch] a file to make it appear as modified to [make]
+T-2 $ touch header-common
+T-2 $ make talk-server 
+
+                         --------------------------
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+---------------------- end of file socket7.txt -----------------------
+
+

@@ -1,0 +1,1337 @@
+College of Engineering and Management, KOLAGHAT
+Computer Network Laboratory ( 6th Semester 2025, IT )
+Experiment: ECHO-servers, UDP and TCP. ( Filename - socket3.txt )
+
+Name: __________________________________________________________
+
+Roll No: ______________________  Date: _________________________
+
+
+Documents to read:
+                    1.  UNIX Network Programming
+                        By W. Richard Stevens
+                        Chapter-6, on Berkeley Sockets
+
+
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Use  pencil and eraser to record outputs.  Use terminal-5 to login  as
+[root] user.
+
+Create a directory [socket3] in your home directory.
+$ mkdir $HOME/socket3
+T-2 $ cd $HOME/socket3
+
+Get [ socket3.txt ] in [ socket3 ] directory. 
+T-2 $ cd $HOME/socket3
+T-2 $ ftp ......
+
+In Unix machines, [ echo ] servers,  using  TCP  and  UDP  are usually
+provided.  Port number seven is assigned to [ echo ] servers.  In this
+experiment  you are  going to write and test ECHO severs,  using  some 
+non-standard ports.
+
+
+The  following  figure shows calls  executed by sever and  client  for
+connection oriented protocol.
+( From "UNIX Network Programming" by W.Richard Stevens ).
+  ___________                                     __________
+ |  SERVER   |                                   |          |
+ |           |                                   |  CLIENT  |
+ | socket()  |                                   |          |
+ | bind()    |                                   | socket() |
+ | listen()  |      connection establishment     |          |
+ |        accept() <-------------------------> connect()    |
+ |           |                                   |          |
+ |           |         client's request          |          |
+ |          read() <--------------------------  write()     |
+ |           |                                   |          |
+ |           |         server's reply            |          |
+ |          write() ------------------------->  read()      |
+ |           |                                   |          |
+  -----------                                     ----------
+                     
+
+                           Figure-1 
+
+
+A stand alone ECHO server using TCP protocol, is to be written by you.
+It can be seen from Figure-1, that the server has to
+
+  create one IPv4 stream ( TCP ) socket,
+  initialise members of the local address / addresses,
+  bind the socket to local address / addresses,
+  listen on the socket for incoming requests and
+  wait to accept client's requests on the socket.
+
+The returned value of [ accept() ] call creates a new socket. This new
+socket  is used for communication with the client. Save the  following
+as [ f1a.c ]. This program has serious limitations.
+//-------------------------------------------------------------------
+// file-name f1a.c
+// TCP ECHO server listening on only [ eth0 ] interface
+// usage: program-name
+
+#include  <stdio.h>
+#include  <stdlib.h>
+#include  <string.h>
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <arpa/inet.h>
+#include  <unistd.h>
+
+#define   ETH0        "address-of-your-eth0-interface"
+// next line is an example
+// #define   ETH0     "172.16.4.5"
+
+#define   SERVER_PORT  50001     // an unused port in your HOST
+// Choose any port number between  50000 and 50030.  This range
+// of ports has no special  significance.  This range of  ports
+// are  scanned in this experiment to check on servers  running
+// on different hosts.
+
+#define   BUFFERSIZE    1024  // arbitrary
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd;  
+  // [ser_sd] is to be used as server's socket file descriptor
+
+  int                   tempsockfd, n ;
+  //int                 set_it=1;
+  socklen_t             clientlength;
+  ssize_t               i, j ;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr, client_addr;
+
+
+  // the program takes no argument
+  if( argc != 1 )
+  {
+    printf("usage: %s \n", argv[0] );
+    exit(1);
+  }
+
+  // a TCP socket( IPv4 stream socket ) is created
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  // zero may be used for IPPROTO_TCP
+
+
+  /*
+  // Use this call to reuse address.
+  // This call has 5 arguments
+  n = setsockopt(  ser_sd,
+                   SOL_SOCKET,
+                   SO_REUSEADDR,
+                   &set_it,
+                   sizeof(int)  
+                );
+  if( n == -1 ) { perror("setsockopt"); exit(1); }
+  */
+  
+
+  // Initialise the members of the local address (server's address)
+  
+  // address-family of server's address
+  server_addr.sin_family = AF_INET;
+
+  // local-address ( server's IP address )
+  n = inet_aton( ETH0, &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("inet_aton: Invalid address\n"); exit(1); }
+
+  // local-port ( server's port )
+  server_addr.sin_port = htons(SERVER_PORT);
+
+  // bind the server's address with the created socket.
+  // [bind] call has three arguments
+  n = bind( ser_sd,
+            (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  if( n == -1) { perror("bind-call"); exit(1); }
+
+
+  // putting the socket in listening state
+  n = listen( ser_sd, 5 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+  
+  clientlength = sizeof(client_addr);
+  // [clientlength] will be used as third argument of [accept] call
+
+  while ( 1 ) // endless loop  
+  {
+    printf( "%s : waiting for client's request on port %u \n",
+            argv[0], SERVER_PORT );
+
+    // [accept()] call has three arguments
+    tempsockfd = accept( ser_sd,
+                         (struct sockaddr *)&client_addr,
+                         &clientlength );
+    if( tempsockfd == -1 ) { perror("accept-call"); } 
+    // [tempsockfd] is used for communication with the current client
+
+
+    // clear buffer before reading into it
+    memset( buffer, '\0', BUFFERSIZE );
+    // read client's request in the buffer
+    i = read( tempsockfd, buffer, BUFFERSIZE );
+    if( i == -1 ) { perror("socket-read"); exit(1); }
+
+    j = write( STDOUT_FILENO,"Received from client->", 22 );
+    if( j == -1 ) { perror("screen-write"); exit(1); }
+
+    printf("%s \n", buffer );
+
+    // write contents of buffer to client's socket
+    j = write( tempsockfd, buffer, i );
+    if( j == -1 ) { perror("socket-write"); exit(1); }
+  
+    // shutdown communication channel with this client
+    n = shutdown(tempsockfd,SHUT_RDWR);
+    if ( n == -1 ) { perror("shutdown"); exit(1); }
+    
+    // remove this now-useless socket
+    n = close(tempsockfd);
+    if( n == -1 ) { perror("close-tempsockfd"); exit(1); }
+  } // endless-loop block
+  
+  // program would not reach here due to endless-loop
+
+  // close(ser_sd);
+  exit(0);
+} // end of main
+//-------------------------------------------------------------------
+
+In the above program, the server's IP address is hard coded.  If  this
+program is compiled in another host,  that host's IP address is to  be
+used in the program. This is restrictive, as the program would not run
+correctly  in another host, without  modification.  So this program is
+not proper. Other limitations of this program are to be examined later
+in Assignment-1. 
+
+Assignment-1:
+
+(a)
+Define ETH0 correctly, choose some port and compile [f1a.c].
+T-2 $ gcc -Wall ./f1a.c -o ./one-a
+
+Start the server.
+T-2 $ ./one-a
+
+Server listening on port ______________
+
+Verify the server's port with
+T-5 # netstat -atnp | grep one-a
+Was the server listening on eth0 interface ? ( Y / n )
+Was the server listening on loopback interface ? ( y / N )
+
+Terminate the server with CTRL-C
+T-2  CTRL-C
+
+Run the server with [strace]
+T-2 $ strace ./one-a
+
+From  the output of above,  find out the value of the server's  socket
+descriptor.
+
+Value of [ser_sd] -->
+
+Was the program blocking on [accept] on server's socket ? ( Y / n )
+
+Login as any user ( sumit, ayan or your-login ) in terminal three. Use
+[ netcat ] in [telnet] mode to connect to the server.  [netcat] can be
+stopped with CTRL-C but this need not be used as the server shuts down
+connection when communication is over.
+T-3 $ nc  -t  172.16.4.___  500__
+
+Did the [echo] server run correctly ? ( Y / n )
+
+[telnet] or [tcp-echo-client] written by you in an earlier  experiment
+may also be used to test the server.
+
+Request your friend to test your TCP [ echo ] server with [netcat]  or
+[telnet] or [tcp-echo-server].
+
+After  the connection  establishment,  your friend is  not to enter  a
+string till your observations are over.
+
+  
+you T-5 # netstat -atnp | grep one-a
+
+Fill up the following
+
+Protocol  Local Address:port     Foreign Address:port         State
+
+
+Request your friend to enter a string.
+
+Was your friend able to communicate with your [echo] server? ( Y / n )
+
+Terminate [strace] with CTRL-C
+T-2   CTRL-C
+
+(b)
+
+This is an iterative server. This server can process a single client's
+request at a time.
+
+Start the server
+T-2 $ ./one-a
+
+Note: [bind] call should fail if address is in use.  After a while the
+      will be free. 
+      To avoid this small delay the following lines of code may be
+      uncommented.
+      //int                 set_it=1;
+      /*
+      // Use this call to reuse address.
+      // This call has 5 arguments
+      n = setsockopt(  ser_sd,
+                       SOL_SOCKET,
+                       SO_REUSEADDR,
+                       &set_it,
+                       sizeof(int)
+                    );
+      if( n == -1 ) { perror("setsockopt"); exit(1); }
+      */
+
+
+From your account in Terminal-3, run the client program
+T-3 $ tcp-echo-client 172.16.4.___   _________
+
+Do not enter a string
+
+
+From your account in Terminal-4, run the client program
+T-4 $ tcp-echo-client 172.16.4.___   _________
+Enter a string in Terminal-4.
+
+Did you get the echo ? ( y / N )
+
+Enter a string in terminal-3
+
+Did you get the echo ? ( Y / n )
+
+Go back to terminal-4
+
+Did you get the echo ? ( Y / n ) 
+
+Terminate server with CTRL-C.
+
+(c)
+
+Start the [echo] server
+T-2 $ ./one-a
+
+As the server's address was hard coded, the server listens ONLY on the
+specified address. 
+
+Scan TCP ports of loopback interface for specified range of ports.
+T-5 # nmap -sT 127.0.0.1 -p 50000-50030
+
+Was [echo] server listening on loopback interface ? ( y / N )
+
+
+Run a TCP port scan, on the on eth0 interface of your host
+T-5 # nmap  -sT  your-eth0-address  -p 50000-55030
+
+Record the following output
+
+Port                State         Service
+                
+________________    ________      _________
+
+
+
+Note: The above TCP port scan should cause the server to crash.
+      This is a serious limitation of the program [f1a.c].
+
+
+The program [f1a.c] is modified into program [f1b.c].  In [f1b.c], all
+[ exit(1) ] statements within the server loop are removed and a signal
+handler for SIGPIPE is installed.
+//-----------------------------------------------------------------
+// file-name f1b.c
+// TCP ECHO server listening on only one interface.
+// server has signal handler for SIGPIPE
+// usage: program-name
+
+#include  <stdio.h>
+#include  <stdlib.h>
+#include  <unistd.h>
+#include  <string.h>
+#include  <signal.h>
+#include  <errno.h>
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <arpa/inet.h>
+
+
+#define   INTERFACE     "interface-address"
+// next two lines are examples
+// #define   INTERFACE     "172.16.4.11"
+// #define   INTERFACE     "127.0.0.1"
+
+// use xx between 0 to 30, this has no special significance
+#define   SERVER_PORT 500xx
+
+#define   BUFFERSIZE  4096
+
+
+// signal handler prototype
+void pipe_handler( int signumber );
+
+extern int errno;
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd;  
+  int                   tempsockfd, n ;
+  socklen_t             clientlength;
+  ssize_t               i, j ;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr, client_addr;
+  struct  sigaction     act;
+
+  // signal handler installation
+  act.sa_handler = pipe_handler;
+  sigaction( SIGPIPE, &act, NULL );
+
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( INTERFACE, &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("inet_aton: Invalid address\n"); exit(1); }
+  server_addr.sin_port = htons(SERVER_PORT);
+
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  if( n == -1) { perror("bind-call"); exit(1); }
+
+  n = listen( ser_sd, 1 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+  
+  clientlength = sizeof(client_addr);
+
+  while ( 1 ) // endless loop  
+  {
+    printf( "%s : waiting for client's request on port %u \n",
+            argv[0], SERVER_PORT );
+
+    tempsockfd = accept( ser_sd, (struct sockaddr *)&client_addr,
+                         &clientlength );
+    if( tempsockfd == -1 ) perror("accept-call"); 
+
+    // clear buffer before reading into it
+    memset( buffer, '\0', BUFFERSIZE );
+    i = read( tempsockfd, buffer, BUFFERSIZE );
+    if( i == -1 ) 
+    { 
+       perror("temp-socket-read");
+       printf("temp-socket-read: errno = %u\n", errno ); 
+    }
+
+    j = write( STDOUT_FILENO,"Received from client->", 22 );
+    if( j == -1 )  perror("screen-write");
+
+    printf("%s \n", buffer );
+    
+    j = write( tempsockfd, buffer, i );
+    if( j == -1 )
+    {
+       perror("temp-socket-write");
+       printf("temp-socket-write: errno = %u\n", errno );
+    }    
+  
+    n = shutdown(tempsockfd,SHUT_RDWR);
+    if ( n == -1 ) 
+    {
+       perror("shutdown");
+       printf("temp-socket-shutdown: errno = %u\n", errno );
+    }
+
+    n = close(tempsockfd);
+    if( n == 0 )
+    {
+       printf("closing [tempsockfd] successful \n\n");
+    }
+  } // end of while block
+  
+} // end of main
+
+// signal handler
+void pipe_handler( int signumber )
+{
+  printf("signal-handler: received %u \n", signumber );
+  return;
+}
+//-----------------------------------------------------------------
+Assignment-1:
+(d)
+Define INTERFACE as your eth0 address, compile the program and run the
+server
+T-2 $ gcc -Wall ./f1b.c -o ./one-b
+T-2 $ ./one-b
+
+From another terminal or another host run a TCP port scan of your host
+
+T-5 # nmap -sT  172.16.4.xx  -p 50000-50030
+
+Was the server listening on eth0 interface ? ( Y / n )
+
+Go back to the server's terminal.
+
+Did the server crash ? ( y / N )
+
+Record the error messages:
+
+errno -->        Name of this error-->
+
+Signal delivered to the process--->
+
+Terminate server with CTRL-C.
+T-2  CTRL-C
+T-2 $
+
+(e) 
+
+Edit [f1b.c] and define server's address as
+
+#define   INTERFACE     "127.0.0.1"
+
+Compile and run the server.
+T-2 $ gcc -Wall ./f1b.c -o ./one-b
+T-2 $ ./one-b
+
+This  server  listens on loopback interface  ONLY.  Thus the server is
+accessible  only  within  this  host.  Test the  server  from  another
+terminal
+T-3 $ tcp-echo-client 127.0.0.1  server-port-number
+
+
+Run a TCP port scan on loopback interface
+T-5 # nmap -sT 127.0.0.1  -p 50000-50030
+
+Was the server listening on loopback interface ? ( Y / n )
+
+Run a TCP port scan on your eth0 interface
+T-5 # nmap -sT  your-eth0-interface-address  -p 50000-50030
+
+Was the server listening on eth0 interface ? ( y / N )
+
+Terminate server with CTRL-C.
+T-2 CTRL-C
+T-2 $
+
+(f)
+Use  any port under 1024, as the server's port.  You might  define the
+port in [f1b.c], as shown below
+
+#define  SERVER_PORT  1023
+
+Save the modified file as [f1c.c].
+
+Compile...
+T-2 $ gcc -Wall ./f1c.c -o ./one-c
+
+Try to start the server as an ordinary user.
+T-2 $ ./one-c
+
+Was an ordinary user able to start the server ? ( y / N )
+
+Start the server as [root] user, from [socket3] directory
+T-2 $ su
+             enter [root] password
+T-2 # ./one-c
+
+Did the server start ? ( Y / n )
+
+From another terminal use [tcp-echo-client] to test the server
+T-3 $ tcp-echo-client  127.0.0.1  server's-port
+
+Did the server run correctly ? ( Y / n )
+
+Terminate server with CTRL-C.
+T-2 CTRL-C
+
+Exit superuser mode.
+T-2 # exit
+T-2 $
+
+End of Assignment-1.
+
+
+In  the previous programs the variable [ client_addr ] was used as  an
+argument of [accept] call. [accept] call may not use this variable. In
+[f2.c],  a short form of [ accept ] call is used. In short form of the
+[ accept ] call, the variable [clientlength] is also not needed.
+//------------------------------------------------------------
+// file-name f2.c
+// TCP ECHO server listening on [ eth0 ] interface.
+// server has signal handler for SIGPIPE.
+// short form of [accept] call is used.
+// usage: program-name
+
+#include  <stdio.h>
+#include  <stdlib.h>
+#include  <unistd.h>
+#include  <string.h>
+#include  <signal.h>
+#include  <errno.h>
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <arpa/inet.h>
+
+#define   SERVER_ADDRESS     "your-eth0-interface-address"
+
+#define   SERVER_PORT        50000 
+
+#define   BUFFERSIZE         2048 
+
+void pipe_handler( int signumber );
+
+extern int errno;
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd;  
+  int                   tempsockfd, n ;
+  ssize_t               i, j ;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr;
+  struct  sigaction     act;
+
+  act.sa_handler = pipe_handler;
+  sigaction( SIGPIPE, &act, NULL );
+
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( SERVER_ADDRESS, &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("Invalid address\n"); exit(1); }
+  server_addr.sin_port = htons(SERVER_PORT);
+
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  if( n == -1) { perror("bind-call"); exit(1); }
+
+  n = listen( ser_sd, 1 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+  
+  while ( 1 ) // endless loop  
+  {
+    printf( "%s : waiting for client's request on port %u \n",
+            argv[0], SERVER_PORT );
+
+    // note the 2nd and 3rd arguments
+    tempsockfd = accept( ser_sd, NULL, 0 );
+    if( tempsockfd == -1 ) perror("accept-call"); 
+
+    memset( buffer, '\0', BUFFERSIZE );
+    i = read( tempsockfd, buffer, BUFFERSIZE );
+    if( i == -1 ) 
+    {
+      perror("socket-read");
+      printf("socket-read: errno = %u\n", errno );
+    }
+
+    j = write( STDOUT_FILENO,"Received from client->", 22 );
+    if( j == -1 )  perror("screen-write");
+
+    printf("%s \n", buffer );
+    
+    j = write( tempsockfd, buffer, i );
+    if( j == -1 )
+    {
+       perror("socket-write");
+       printf("socket-write: errno = %u\n", errno );
+    }    
+  
+    n = shutdown(tempsockfd,SHUT_RDWR);
+    if ( n == -1 ) 
+    {
+       perror("shutdown");
+       printf("shutdown: errno = %u\n", errno );
+    }
+
+    close(tempsockfd);
+  } // end of while block
+  
+} // end of main
+
+// signal handler
+void pipe_handler( int signumber )
+{
+  printf("signal-handler: received %u \n", signumber );
+  return;
+}
+//------------------------------------------------------------
+
+Assignment-2:
+
+Define server's address correctly, compile and start the server
+T-2 $ gcc -Wall ./f2.c -o ./two
+T-2 $ ./two
+
+From another terminal test the server
+T-3 $ tcp-echo-client 172.16.4.___  50000
+
+Did the server run correctly ? ( Y / n )
+
+End of Assignment-2.
+
+
+When  full  form  of  the [ accept ]  call is  used,  the  members  of
+[ client_addr ]  structure are filled in after a successful [ accept ]
+call.  The values of a client's address and port number may be printed
+from the server. However this is not essential for server operation.
+//-----------------------------------------------------------------
+// file-name f3.c
+// TCP ECHO server listening on [ eth0 ] interface.
+// server has signal handler for SIGPIPE.
+// prints IP address and port-number of each client
+// usage: program-name
+
+#include  <stdio.h>
+#include  <unistd.h>
+#include  <stdlib.h>
+#include  <signal.h>
+#include  <errno.h>
+#include  <string.h>
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <arpa/inet.h>
+
+#define   SERVER_ADDR   "your-eth0-interface-address"
+
+#define   SERVER_PORT   50000 
+
+#define   BUFFERSIZE    4096  
+
+void pipe_handler( int signumber );
+
+extern int errno;
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd;  
+  int                   tempsockfd, n ;
+  socklen_t             clientlength;
+  ssize_t               i, j ;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr, client_addr;
+  struct  sigaction     act;
+
+  act.sa_handler = pipe_handler;
+  sigaction( SIGPIPE, &act, NULL );
+
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( SERVER_ADDR, &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("inet_aton: Invalid address\n"); exit(1); }
+  server_addr.sin_port = htons(SERVER_PORT);
+
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  if( n == -1) { perror("bind-call"); exit(1); }
+
+  n = listen( ser_sd, 1 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+  
+  clientlength = sizeof(client_addr);
+
+  while ( 1 ) // endless loop  
+  {
+    printf( "%s : waiting for client's request on port %u \n",
+            argv[0], SERVER_PORT );
+
+    tempsockfd = accept( ser_sd, (struct sockaddr *) &client_addr,
+                         &clientlength );
+    if( tempsockfd == -1 ) perror("accept-call"); 
+
+    // IP address and port of a client is printed
+    printf("client's port = %u \n",
+             ntohs( client_addr.sin_port ) );
+    printf("client's address in numbers-and-dots notation = %s \n",
+            inet_ntoa(client_addr.sin_addr) );
+
+
+    memset( buffer, '\0', BUFFERSIZE );
+    i = read( tempsockfd, buffer, BUFFERSIZE );
+    if( i == -1 ) 
+    {
+      perror("socket-read");
+      printf("socket-read: errno = %u\n", errno );
+    }
+
+    j = write( STDOUT_FILENO,"Received from client->", 22 );
+    if( j == -1 )  perror("screen-write");
+
+    printf("%s \n", buffer );
+    
+    j = write( tempsockfd, buffer, i );
+    if( j == -1 )
+    {
+       perror("socket-write");
+       printf("socket-write: errno = %u\n", errno );
+    }    
+  
+    n = shutdown(tempsockfd,SHUT_RDWR);
+    if ( n == -1 ) 
+    {
+       perror("shutdown");
+       printf("shutdown: errno = %u\n", errno );
+    }
+
+    close(tempsockfd);
+  }
+  
+} // end of main
+
+// signal handler
+void pipe_handler( int signumber )
+{
+  printf("signal-handler: received %u \n", signumber );
+  return;
+}
+//-----------------------------------------------------------------
+
+Assignment-3:
+
+Define server's address correctly, compile and run the server
+T-2 $ gcc -Wall ./f3.c -o ./three
+T-2 $ ./three
+
+Request a friend to test your sever.
+friend $ tcp-echo-client 172.16.4.___    ___________
+
+Before entering a string, friend finds out the ephemeral port for this
+connection.
+
+friend T-5 # netstat -atn
+
+friend's ephemeral port -->
+
+Record from your server's output
+
+client's port--------->
+client's address------>
+
+Terminate server with CTRL-C
+T-2  CTRL-C
+T-2 $
+
+End of Assignment-3.
+
+Server's  IP address  was hard coded in  previous  servers.  Usually a
+server listens on all available interfaces of a host. This is shown in
+program [f4.c]. SERVER_ADDRESS is not defined in this program.
+//-----------------------------------------------------------------
+// file-name f4.c
+// TCP ECHO server listening on all interfaces.
+// server has signal handler for SIGPIPE.
+// prints client's IP address and port-number
+// usage: program-name
+
+#include  <stdio.h>
+#include  <unistd.h>
+#include  <stdlib.h>
+#include  <signal.h>
+#include  <string.h>
+#include  <errno.h>
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <arpa/inet.h>
+
+#define   SERVER_PORT   50000 
+
+#define   BUFFERSIZE    1024  
+
+void pipe_handler( int signumber );
+
+extern int errno;
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd;  
+  int                   tempsockfd, n ;
+  socklen_t             clientlength;
+  ssize_t               i, j ;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr, client_addr;
+  struct  sigaction     act;
+
+  act.sa_handler = pipe_handler;
+  sigaction( SIGPIPE, &act, NULL );
+
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  
+  server_addr.sin_family = AF_INET;
+
+  /*
+     If INADDR_ANY is specified, the socket will be bound to all local
+     interfaces.
+  */
+  server_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+
+  server_addr.sin_port = htons(SERVER_PORT);
+
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  if( n == -1) { perror("bind-call"); exit(1); }
+
+  n = listen( ser_sd, 1 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+  
+  clientlength = sizeof(client_addr);
+
+  while ( 1 ) // endless loop  
+  {
+    printf( "%s : waiting for client's request on port %u \n",
+            argv[0], SERVER_PORT );
+
+    tempsockfd = accept( ser_sd, (struct sockaddr *) &client_addr,
+                         &clientlength );
+    if( tempsockfd == -1 ) perror("accept-call"); 
+
+    // IP address and port of a client is printed. This is not
+    // essential for server operation.
+    printf("client's port = %u \n",
+             ntohs( client_addr.sin_port ) );
+    printf("client's address in numbers-and-dots notation = %s \n",
+            inet_ntoa(client_addr.sin_addr) );
+
+
+    // clear buffer before reading into it
+    memset( buffer, '\0', BUFFERSIZE );
+    i = read( tempsockfd, buffer, BUFFERSIZE );
+    if( i == -1 ) 
+    {
+      perror("socket-read");
+      printf("socket-read: errno = %u\n", errno );
+    }
+
+    j = write( STDOUT_FILENO,"Received from client->", 22 );
+    if( j == -1 )  perror("screen-write");
+
+    printf("%s \n", buffer );
+    
+    j = write( tempsockfd, buffer, i );
+    if( j == -1 )
+    {
+       perror("socket-write");
+       printf("socket-write: errno = %u\n", errno );
+    }    
+  
+    n = shutdown(tempsockfd,SHUT_RDWR);
+    if ( n == -1 ) 
+    {
+       perror("shutdown");
+       printf("shutdown: errno = %u\n", errno );
+    }
+
+    close(tempsockfd);
+  }
+  
+} // end of main
+
+// signal handler
+void pipe_handler( int signumber )
+{
+  printf("signal-handler: received %u \n", signumber );
+  return;
+}
+//-----------------------------------------------------------------
+
+Assignment-4:
+
+Compile and run the server
+T-2 $ gcc -Wall ./f4.c -o ./four
+T-2 $ ./four
+
+From another terminal test the server using [eth0] interface
+T-3 $ tcp-echo-client 172.16.4.___   _____
+
+Did the server run correctly ? ( Y / n )
+
+From another terminal test the server using loopback interface
+T-3 $ tcp-echo-client 127.0.0.1   _____
+
+Did the server run correctly ? ( Y / n )
+
+Stop server with CTRL-C and restart it
+T-2 $ ./four
+
+Use the following command and record output.
+T-5 # netstat -atnp | grep four
+
+Proto  Local Address      Foreign Address  State   PID/Program name
+tcp                                        LISTEN  _____/four
+
+
+From another terminal connect to the server
+T-3 $ tcp-echo-client 172.16.4.____  ______
+
+Do not enter any string now...
+
+Use [netstat] command and record output. A typical output is shown
+T-5 # netstat -atnp | grep four
+
+Proto  Local Address        Foreign Address     State         PID/name
+
+tcp    0 0.0.0.0:_____      0.0.0.0:*           LISTEN       ____/four
+tcp    172.16.4.___:____   172.16.4.___:____  ESTABLISHED    ____/four
+
+
+Enter a string in the client program.
+
+Test the server again
+T-3 $ tcp-echo-client 127.0.0.1  ______
+
+Do not enter any string now...
+
+Use [netstat] command and record output. A typical output is shown
+T-5 # netstat -atnp | grep four
+
+Proto  Local Address        Foreign Address     State        PID/name
+tcp    0 0.0.0.0:_____      0.0.0.0:*           LISTEN       four
+tcp    127.0.0.1:_____      127.0.0.1:________  ESTABLISHED  four
+
+Run a TCP port scan on [eth0] interface for the server's port
+T-5 # nmap -sT 172.16.4.____  -p 50000-55000
+
+Was the TCP port open ? ( Y / n )
+
+Run a TCP port scan on loopback interface
+T-5 # nmap  -sT 127.0.0.1   -p  50000-55000
+
+Was the TCP port open ? ( Y / n )
+
+Terminate server with CTRL-C.
+
+End of Assignment-4.
+
+
+[f5.c] is a concurrent TCP ECHO server.
+//---------------------------------------------------------------
+// file-name f5.c
+// TCP ECHO concurrent server.
+// server has SIGCHLD signal handler for zombie removal
+// usage: program-name
+
+#include  <stdio.h>
+#include  <unistd.h>
+#include  <stdlib.h>
+#include  <signal.h>
+#include  <wait.h>
+#include  <errno.h>
+#include  <string.h>
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <netinet/in.h>
+#include  <arpa/inet.h>
+
+#define   SERVER_PORT   65535 
+
+#define   BUFFERSIZE    1024  
+
+void  pipe_handler( int signumber );
+void  child_handler( int signumber );
+
+extern int errno;
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd;  
+  int                   tempsockfd, n ;
+  ssize_t               i, j ;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr;
+  struct  sigaction     act;
+
+  act.sa_handler = child_handler;
+  act.sa_flags = SA_RESTART;
+  sigaction( SIGCHLD, &act, NULL );
+
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+  server_addr.sin_port = htons(SERVER_PORT);
+
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  if( n == -1) { perror("bind-call"); exit(1); }
+
+  n = listen( ser_sd, 1 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+  
+  while ( 1 ) // endless loop  
+  {
+    pid_t   pid;
+
+    printf( "\n %s : waiting for client's request on port %u \n",
+            argv[0], SERVER_PORT );
+
+    tempsockfd = accept( ser_sd, NULL, 0 );
+    if( tempsockfd == -1 ) perror("accept-call"); 
+
+
+    // server( main ) forks a child to handle a client's request
+    pid = fork();
+    if ( pid == -1 ) { perror("fork-call"); exit(1); }
+
+    if ( pid == 0 ) // child process handles a client's request
+    {
+       // clear buffer before reading into it
+       memset( buffer, '\0', BUFFERSIZE );
+       i = read( tempsockfd, buffer, BUFFERSIZE );
+       if( i == -1 ) { perror("tempsockfd-read"); exit(1); }
+
+       j = write( STDOUT_FILENO,"Received from client->", 22 );
+       if( j == -1 )  { perror("screen-write"); exit(1); }
+
+       printf("%s \n", buffer );
+    
+       j = write( tempsockfd, buffer, i );
+       if( j == -1 ) { perror("socket-write"); exit(1); }
+  
+       n = shutdown(tempsockfd,SHUT_RDWR);
+       if ( n == -1 ) { perror("shutdown"); exit(1); }
+       
+       n = close(tempsockfd);
+       if( n == -1 ) { perror("close-tempsockfd"); exit(1); }
+
+       exit(0);
+    } // end of child's block
+    
+    // rest is parent's block. Main closes useless socket
+    close(tempsockfd);
+
+  } // end of endless-loop block
+  
+} // end of main
+
+// signal handler
+void child_handler( int signumber )
+{
+  pid_t  p;
+
+  printf("signal-handler: received %u \n", signumber );
+  p = waitpid( -1, NULL, WNOHANG );
+  if( p == -1 )  perror("waitpid");
+
+  return;
+}
+//---------------------------------------------------------------
+
+The  parent process blocks in [ accept ] call while a child process is
+processing  a  client's request.  When the child exits, parent gets  a
+SIGCHLD signal. So the [ accept ] call would be interrupted and [read]
+call on [ tempsockfd ] in next child process would fail. To prevent it
+[ SA_RESTART ] flag is used in signal handler.
+
+Assignment-5:
+Compile and run the server
+T-2 $ gcc -Wall ./f5.c -o ./five
+T-2 $ ./five
+
+Scan loopback interface of your host for ports 60000 and higher
+T-5 # nmap -sT 127.0.0.1 -p 60000-
+
+Scan eth0 interface of your host for ports 60000 and higher
+T-5 # nmap -sT 172.16.4.5 -p 60000-
+
+In terminal-3 make connection to the server
+T-3 $ tcp-echo-client 127.0.0.1 65535
+
+Do not enter a string
+
+
+In terminal-4 test the concurrent server
+T-4 $ tcp-echo-client 127.0.0.1 65535
+
+Did the server run correctly ( Y / n )
+
+Enter a string in terminal-3 
+
+Did the server run correctly ? ( Y / n )
+
+Check for zombie
+T-3 $ ps ax
+
+Was there  zombies ? ( Y / N )
+
+
+Terminate server with CTRL-C
+T-2   CTRL-C
+
+Save the server program.
+T-2 $ cp  ./five   $HOME/bin/tcp-echo-con-server
+
+End of Assignment-5.
+
+
+The system calls using a connection-less protocol is shown below.
+( From "UNIX Network Programming" by W.Richard Stevens ).
+
+            SERVER
+              |
+           socket()
+              |
+            bind()
+              |
+           listen()                                        CLIENT
+              |                                              |
+          recvfrom()                                       socket()
+              |                                              |
+     Blocks until data is                                  bind()
+     received from a client                                  |
+              |                    Request                   |
+          recvfrom() ----------------<-------------------- sendto()
+              |                                              |
+      process request                                        |
+              |                                              |
+            sendto() ---------------->------------------ recvfrom()
+                                   Reply
+
+
+
+[f6.c] is a UDP ECHO server. The calls made by the server are shown in
+the above figure. 
+//-------------------------------------------------------------------
+// file-name f6.c
+// UDP ECHO server using all interfaces
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define  SERVER_PORT     50000
+#define  BUFFERSIZE      512    // no more than this    
+
+extern int errno;  
+
+int main( int argc, char *argv[] )
+{
+  int                   ser_sd; 
+  struct  sockaddr_in   server_addr, client_addr;
+  socklen_t             clientlength;
+  char                  buffer[BUFFERSIZE];  
+  ssize_t               i, j ;
+  int                   n;
+
+  // an IPv4 datagram socket ( UDP socket ) is created 
+  ser_sd = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+  // zero may be used for IPPROTO_UDP
+
+  // members of [server_addr] structure are initialised with the
+  // address of the server
+  server_addr.sin_family      =  AF_INET;
+  server_addr.sin_addr.s_addr =  htonl(INADDR_ANY);
+  server_addr.sin_port        =  htons(SERVER_PORT);
+
+  // bind socket with IPv4 address of server
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+  
+  clientlength = sizeof(client_addr);
+  while( 1 ) // endless loop
+  {
+     printf("%s: using UDP port-%u \n", argv[0], SERVER_PORT );
+     memset( buffer, '\0', BUFFERSIZE );
+     i = recvfrom( ser_sd, buffer, BUFFERSIZE,0,
+                   (struct sockaddr *) &client_addr, &clientlength );
+     if( i == -1 ) perror("recvfrom-call"); 
+
+     // printing client's address and port are not essential
+     printf("client's IP address = %s \n",
+             inet_ntoa(client_addr.sin_addr)  );
+     printf("client's port = %u \n",
+             ntohs(client_addr.sin_port) );
+
+     j = write( STDOUT_FILENO, "received from client-> ", 23 );
+     if( j == -1 ) perror("write-stdout");
+
+     printf("%s \n", buffer );         
+   
+     j = sendto( ser_sd, buffer, i, 0, 
+         (struct sockaddr *)  &client_addr, clientlength);
+     if( j == -1 ) perror("sendto-call");
+  }  // end of while block
+
+  close( ser_sd );
+  exit(0);
+}
+//-------------------------------------------------------------------
+
+Assignment-6:
+
+Compile the program and start the server
+T-2 $ gcc -Wall ./f6.c -o ./six
+T-2 $ ./six
+
+
+Test  the server with [ udp-echo-client ] written by you in a previous
+experiment.
+T-3 $ udp-echo-client 127.0.0.1   50000
+T-3 $ udp-echo-client 172.16.4.___   50000
+
+Did the server run correctly ? ( Y / n )
+
+Run UDP port scans...
+T-5 # nmap -sU 127.0.0.1       -p 50000
+T-5 # nmap -sU 172.16.4.___    -p 50000
+
+Request your friend to test your UDP echo server using [netcat] or
+[udp-echo-client] program.
+friend $ nc -u your-eth0-IP-address 50000
+
+Request your friend to scan UDP ports of your host, 45000 and above
+friend T-5 # namp -sU your-eth0-IP-address 45000-
+
+Save this program.
+T-2 $ cp  ./six   $HOME/bin/udp-echo-server
+
+End of Assignment-6.
+
+                         ---------------------
+
+Optional assignment:
+
+1. Show that two packets are exchanged between [ udp-echo-client ] and
+   [six].
+  
+   Hint: 
+         Start the server in one terminal
+         Start  [ tshark ] in another terminal to capture and save the
+         relevant UDP packets.
+         # tshark -i lo host 127.0.0.1 and udp
+         From yet another terminal test the server
+         $  udp-echo-client 127.0.0.1 50000
+
+                         -----------------------         
+
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+---------------------  end of file socket3.txt -----------------------

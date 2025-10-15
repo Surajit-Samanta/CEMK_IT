@@ -1,0 +1,620 @@
+College of Engineering and Management, KOLAGHAT
+Computer Network Laboratory ( 6th Semester 2025, IT )
+Experiment: TCP and UDP daytime clients and servers
+( Filename - socket4.txt )
+
+Name: __________________________________________________________
+
+Roll No: ______________________  Date: _________________________
+
+
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Create a directory [socket4] in your home directory.  Change into that
+directory.
+$ mkdir $HOME/socket4
+T-2 $ cd $HOME/socket4
+
+Bring [socket4.txt] in this directory
+T-2 $ ftp 172.16.4.___
+.
+.
+
+You may use Terminal-5 for [root] login.
+
+Internal [ daytime ] servers are available in standard  Unix machines.
+[daytime] servers use port number 13. You may examine [/etc/services].
+
+Run TCP/UDP port scan on localhost for daytime servers
+T-5 # nmap -sTU 127.0.0.1 -p 13
+
+Enable the TCP and UDP [ daytime ] servers. 
+
+If the two [daytime] servers are enabled, the TCP and UDP echo clients
+programs, written by you in a previous experiment, may  be used to get
+time from standard [daytime] servers. You have to press enter to  send
+any string to the [daytime] servers. [daytime] servers do not use this
+string. This is needed as you will be using [echo] client programs  to
+access [daytime] servers.
+
+T-3 $ tcp-echo-client 127.0.0.1 13
+T-3 $ udp-echo-client 127.0.0.1 13
+
+You may also use [netcat] command to test the standard daytime servers.
+
+Test [daytime] server of a host, using TCP.
+T-3 $ nc   172.16.4.5  13
+
+Test [daytime] server of a host, using UDP.
+$ nc  -u  172.16.2.5  13
+
+Enter any character to get time. Exit with CTRL-C.
+
+
+The Unix kernel maintains a count of seconds elapsed since Epoch.
+Epoch is 00:00:00 January 1970. This time is in UTC.
+UTC - Coordinated Universal Time.
+
+
+The synopsis of [time] system call:
+ 
+    time_t time(time_t *t);
+
+    This  call returns the time since the Epoch,  measured in seconds.
+    This time is called calendar time. 
+    You may read the manual
+    T-3 $ man 2 time
+
+The system call [ ctime ] takes calendar time as argument and converts
+it into a string of the form
+
+    "Mon Apr 29 10:23:42 2008\n"
+
+The function also sets the external variable [tzname] with information
+about the current time zone.
+
+
+The following [bash] command gives seconds since epoch.
+
+T-3 $ date +%s
+xxxxxxxxxx --> 
+
+Converting seconds since epoch to human readable format
+T-3 $ date -u -d '1970-01-01 xxxxxxxxxx sec'
+Output-->
+
+T-3 $ date
+Output-->
+
+The  program [f1.c] shows the use of [ time() ] and [ ctime() ] system
+calls.
+--------------------------------------------------------------------
+// file-name  f1.c
+// [time()] and [ctime()] calls
+// usage: program-name
+
+#include <time.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+extern int errno;
+
+int main(void)
+{
+  time_t      now;
+  char        date_string[25];
+   
+  errno = 0;
+  // following statement stores seconds since Epoch in [now].
+  time( &now );
+  if ( errno != 0 ) { perror("time"); exit(1); }
+
+  printf("Seconds since Epoch using [time] call = %lu \n", now);
+  write(STDOUT_FILENO,"Seconds since Epoch using [date] command = ",
+        43 );
+  system("/bin/date +%s");
+
+  printf("before [ctime] call, Time zone = %s \n", *tzname );
+
+  // following statement copies, date and time in human readable
+  // form, in [date_string]
+  strcpy( date_string, ctime( &now) );
+ 
+  printf("after [ctime] call,  Time zone = %s \n", *tzname );
+
+  printf("date by [ctime] call = %s \n", date_string );
+  write(STDOUT_FILENO,"date by [date] command ", 23 );
+  system("/bin/date");
+
+  return 0;
+}
+--------------------------------------------------------------------
+
+Assignment-1:
+
+Compile and run the program
+T-2 $ gcc -Wall ./f1.c -o ./one
+T-2 $ ./one
+
+Record the following:
+
+seconds since Epoch using [time] call ----->  ____________
+seconds since Epoch using [date] command--->  ____________
+
+Before [ctime] call,  Time zone = ____
+After  [ctime] call,  Time zone = ____
+
+date by [ctime] call------------> _____________________________
+
+date by [date] command ---------> _____________________________
+
+End of Assignment-1.
+
+
+Daytime server implementation: 
+                                    When a client's request comes, the
+server calls [time()] to get seconds since Epoch.  Then the server can
+do one of the two things: 
+
+  (1) The  server  can write the  calendar time to client.  The client
+      uses [ctime()] call to convert it to human readable form.
+
+  (2) The  server can write time in human readable form ( by using the 
+      ctime() call ) to client. This is the standard behaviour.
+
+
+[f2.c] is a concurrent TCP [daytime] server.
+-----------------------------------------------------------
+// file-name f2.c
+// TCP [daytime] server (concurrent)
+// usage: program-name 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <time.h>
+#include <wait.h>
+
+#define  PORT           50001
+#define  BUFFERSIZE     50     // must be greater than 26
+
+void child_handler( int signumber );
+
+int main (int argc, char *argv[])
+{
+  int                   ser_sd, temp_sd, n ;
+  struct  sockaddr_in   server_addr; 
+  pid_t                 pid;
+  time_t                now;
+  char                  buffer[BUFFERSIZE];
+  ssize_t               i;
+  struct  sigaction     act;
+
+  // SIGCHLD handler is used to reap zombie
+  act.sa_handler = child_handler;
+  act.sa_flags = SA_RESTART;
+  sigaction( SIGCHLD, &act, NULL );
+
+
+  if( argc != 1 )
+  {
+    printf("usage: %s \n", argv[0] );
+    exit(1);
+  }
+ 
+  // IPv4 TCP socket is created.
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+
+  // members of server address are initialised
+  server_addr.sin_family = AF_INET; 
+  server_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+  server_addr.sin_port = htons( PORT );  
+
+  // socket is bound to [server_addr]
+  n = bind( ser_sd, (struct sockaddr *) &server_addr,
+            sizeof(server_addr) );
+  if( n == -1 ) { perror("bind-call"); exit(1); }
+
+  n = listen( ser_sd, 5 );
+  if( n == -1 ) { perror("listen-call"); exit(1); }
+
+  while (1)
+  {
+    printf("%s: daytime server listening on TCP port %u\n",
+           argv[0], PORT );
+
+    temp_sd = accept( ser_sd, NULL, 0 );
+    if( temp_sd == -1 ) perror("accept-call");
+
+    pid = fork();
+    if( pid == -1 ) {perror("fork-call"); exit(1); } 
+
+    if( pid == 0 ) // child's block
+    {
+       memset( buffer, '\0', BUFFERSIZE );
+       time( &now );
+       strcpy( buffer, ctime( &now ) );
+       // now [buffer] contains time in human readable form
+       i = write( temp_sd, buffer, strlen(buffer) );
+       if( i == -1 ) { perror("socket-write"); exit(1); }
+       shutdown( temp_sd, SHUT_RDWR );
+       close( temp_sd );
+       return 0; 
+    } // child's block
+
+    // parent's block
+    // useless descriptor is closed
+    close( temp_sd );
+
+  } // endless-loop block
+
+} // end of main
+
+// signal handler
+void child_handler( int signumber )
+{
+  pid_t  p;
+
+  printf("signal-handler: received %u \n", signumber );
+  p = waitpid( -1, NULL, WNOHANG );
+  if( p == -1 )  perror("waitpid");
+
+  return;
+}
+-----------------------------------------------------------
+While reading and writing on bad socket descriptors, SIGPIPE signal is
+delivered, in certain conditions, on the calling process.  The default
+action  of this signal is to terminate the process.  This might  cause
+the server ( the child's block, in this program ) to crash. A  handler
+for SIGPIPE should be installed. However SIGPIPE handler was not  used
+in the above program. 
+
+When a child exits after serving a client's request, the child becomes
+a zombie,  unless the exit status of the child is read  by the parent.
+[ waitpid ] call was used in SIGCHILD handler, to prevent creation  of 
+zombie.
+
+Assignment-2:
+             Compile and start the server.
+T-2 $  gcc -Wall ./f2.c -o ./two
+T-2 $  ./two
+
+Request your friend to test your [daytime] server
+
+friend T-3 $ telnet your-IP-address  port-number-of-your-server
+friend T-3 $ nc  your-IP-address  port-number-of-your-server
+Did the server provide daytime ? ( Y / n )
+
+Terminate server
+T-2  CTRL-C
+
+Rename the executable.
+T-2 $ mv ./two ./tcp-daytime-server
+
+Copy the program in [bin] directory under your home directory
+T-2 $ cp ./tcp-daytime-server $HOME/bin/
+
+End of Assignment-2.
+
+[f3.c] is a TCP daytime client.
+----------------------------------------------------------------
+// file-name f3.c   TCP [daytime] client
+// usage -> program-name  server-address  server-port
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+
+#define BUFFERSIZE      40 // must be greater than 26
+
+int main(int argc, char *argv[])
+{
+  int                   ser_sd,n;  
+  ssize_t               i,j;
+  char                  buffer[BUFFERSIZE];  
+  struct  sockaddr_in   server_addr;
+
+  if( argc != 3 )
+  {
+    printf( "Usage: %s server-address server-port\n", argv[0] );
+    exit(1);
+  }
+  
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit( 1 ); }
+
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("Invalid address\n"); exit(1); }
+  server_addr.sin_port = htons( atoi(argv[2]) );
+
+  n = connect( ser_sd, (struct sockaddr *) &server_addr,
+               sizeof(server_addr) );
+  if( n == -1 ) { perror("connect-call"); exit(1); }
+
+  // nothing needs to be written on server's socket.  
+
+  memset( buffer, '\0', BUFFERSIZE );
+  i = read( ser_sd, buffer, BUFFERSIZE );
+  if( i == -1 ) { perror("read"); exit(1); }
+  printf("bytes read from server's socket=%u\n", i );
+
+  write( STDOUT_FILENO,"Reply from server->", 19 ); 
+  j = write( STDOUT_FILENO, buffer, i );
+  if( j == -1 ) { perror("write"); exit(1); }
+
+  shutdown(ser_sd, SHUT_RDWR);
+  close(ser_sd);
+  return 0;
+}
+----------------------------------------------------------------
+
+Assignment-3:
+             Compile the program.
+T-2 $ gcc -Wall ./f3.c -o ./tcp-daytime-client
+
+Copy the executable in your [bin] directory
+T-2 $ cp ./tcp-daytime-client $HOME/bin/
+
+Test the program with different [ daytime ] servers.
+
+T-3 $ tcp-daytime-client 127.0.0.1      13
+T-3 $ tcp-daytime-client 172.16.4.15  13
+T-3 $ tcp-daytime-client 172.16.4.___  13
+
+End of Assignment-3.
+
+
+[f4.c] is a UDP [daytime] server
+----------------------------------------------------------
+// file-name f4.c
+// UDP [daytime] server
+// usage: program-name
+
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define  PORT              50002
+
+#define  BUFFERSIZE        26 
+// should be 26 or more
+
+int main( int argc, char *argv[] )
+{
+  int                      ser_sd, n, i,j ;
+  struct     sockaddr_in   server_addr, client_addr;
+  socklen_t                clientlength;
+  time_t                   now;
+  char                     buffer[BUFFERSIZE];  
+
+  if( argc != 1 )
+  { printf("usage: %s\n", argv[0]); exit(1); }
+
+  // UDP socket is created
+  ser_sd = socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP );
+  if( ser_sd == -1 ) { perror("socket-call"); exit(1); }
+
+  server_addr.sin_family      =  AF_INET;
+  server_addr.sin_addr.s_addr =  htonl(INADDR_ANY);
+  server_addr.sin_port        =  htons(PORT);
+
+
+  // bind socket with address of server ( local endpoint )
+  n = bind( ser_sd, (struct sockaddr *) & server_addr,
+            sizeof(server_addr) );
+
+  clientlength = sizeof(client_addr);
+
+  while( 1 ) // endless loop
+  {
+     printf( "%s: daytime sever on UDP port %u \n",
+             argv[0], PORT );
+     
+     i = recvfrom( ser_sd, buffer, BUFFERSIZE,0,
+                   (struct sockaddr *) &client_addr,
+                   &clientlength );
+     if( i == -1 ) perror("recvfrom-call");
+
+     /*
+        contents of buffer are useless to daytime server.
+        [ recvfrom ]  call  stores  client's  address  in 
+        structure  [ client_addr ].  This is used by  the
+        server to send a datagram to a client.
+     */
+
+     memset( buffer, '\0', BUFFERSIZE );
+     time( &now );
+     strcpy( buffer, ctime( &now ) );
+
+     /*
+
+     // printing client's address and port are
+     // not essential for server operation.
+
+     printf("client's IP address = %s \n",
+             inet_ntoa(client_addr.sin_addr)  );
+     printf("client's port = %u \n",
+             ntohs(client_addr.sin_port) );
+
+     */
+     
+     i = strlen(buffer);
+     j = sendto( ser_sd, buffer, i, 0,
+         (struct sockaddr *)  &client_addr, clientlength);
+     if( j == -1 ) perror("sendto-call");
+  }  // endless-loop
+
+} // end of main
+----------------------------------------------------------
+
+Assignment-4:
+             Compile...
+T-2 $ gcc -Wall ./f4.c -o ./udp-daytime-server
+
+Copy the program in your [bin] directory
+T-2 $ cp ./udp-daytime-server $HOME/bin/
+
+Start the server
+T-3 $ udp-daytime-server
+
+Request  your friend to test your UDP [ daytime ] server with  his/her 
+[udp-echo-client]. Though ECHO client program is not the proper  tool,
+it can be used by pressing the Enter key. [ udp-daytime-client ] is to
+be written by you in the next experiment.
+
+friend $ udp-echo-client your-IP-address  50002
+
+Terminate server 
+T-2  CTRL-C
+
+End of Assignment-4.
+
+
+[f5.c] is UDP [daytime] client
+---------------------------------------------------------------------
+// file-name f5.c
+// UDP [daytime] client
+// usage -> program-name  server-address  server-port
+
+#include    <sys/socket.h>
+#include    <stdio.h>
+#include    <unistd.h>
+#include    <stdlib.h>
+#include    <string.h>
+#include    <arpa/inet.h>
+
+#define     SIZE    26  // 26 or more  
+
+int main( int argc, char *argv[])
+{
+  int                    sd, n; 
+  ssize_t                i;       
+  char                   buffer[SIZE];  
+  struct   sockaddr_in   server_addr;
+  struct   sockaddr_in   local_addr;
+
+  if( argc != 3 )
+  {
+    printf("usage -> prog-name  server-address  server-port \n");
+    printf("example -> %s 172.16.4.140  7 \n", argv[0] );
+    exit(1);
+  }
+
+  // an IPv4 datagram socket ( UDP socket ) is created
+  sd = socket( AF_INET, SOCK_DGRAM, IPPROTO_UDP );
+  // zero may be used for IPPROTO_UDP
+  if( sd == -1 )  { perror("socket-call"); exit(1); }
+
+  // initialise members of [local_addr]
+  local_addr.sin_family = AF_INET;
+  local_addr.sin_addr.s_addr = htonl( INADDR_ANY ); // all interfaces
+  local_addr.sin_port = htons(0); // any free port
+
+  // Bind the local address with the socket. This is needed as we are
+  // interested in a reply from the server. The server needs to  know
+  // our address to send a reply.
+  n = bind( sd, (struct sockaddr *) &local_addr,sizeof(local_addr) );
+  if( n == -1 ) { perror("bind-call"); exit(1); }
+
+  // Initialise the members of server address
+  server_addr.sin_family = AF_INET;
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { perror("invalid-address"); exit(1); }
+  server_addr.sin_port = htons( atoi(argv[2]) );
+  
+  // send zero byte (3rd argument) to server. The daytime
+  // server does not use the data of the datagram.
+  n = sendto( sd, buffer, 0, 0,
+              ( struct sockaddr *) &server_addr,
+              sizeof( server_addr) );
+  if( n == -1 ) { perror("sendto-call"); exit(1); }
+
+  memset( buffer, '\0', SIZE );
+  i = read( sd, buffer, SIZE);
+  if( i == -1 ) { perror("read-call"); exit(1); }
+
+  printf("u-e-c: Received %u bytes from server \n", i );
+  write( STDOUT_FILENO, "u-e-c: From server->", 20 );
+  write( STDOUT_FILENO, buffer, i );
+
+  shutdown( sd, SHUT_RDWR );
+
+  return 0;
+}
+---------------------------------------------------------------------
+
+Assignment-5:
+              Compile...
+T-2 $ gcc -Wall ./f5.c -o ./udp-daytime-client
+
+Move the executable to your [bin] directory
+T-2 $ mv ./udp-daytime-client  $HOME/bin/
+
+Use this program to test different daytime servers...
+
+T-2 $ udp-daytime-client 127.0.0.1      13
+T-2 $ udp-daytime-client 172.16.4.___   13
+T-2 $ udp-daytime-client 172.16.4.251   13
+T-2 $ udp-daytime-client 172.16.4.___   500__
+
+
+End of Assignment-5.
+
+                    
+Assignment-6:
+              Write a daytime client program using UDP protocol. Hints
+are supplied in the following skeletal program.
+---------------------------------------------------
+// file-name f6.c
+// UDP daytime client
+// usage: program-name  server-address  server-port  
+// include headers
+
+// main   
+
+// declare variables
+
+// check number of arguments
+
+// create UDP socket
+
+// initialise members of local address  
+
+// bind the local address with the socket
+
+// initialise members of server's address
+
+// send a few byte to server's address
+
+// read reply from server
+
+// print the reply on standard output
+
+// shutdown socket
+
+// close socket
+---------------------------------------------------
+Test your client program with standard [daytime] servers.
+
+                          -------------------
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+-------------------------- End of socket4.txt ------------------------

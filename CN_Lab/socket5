@@ -1,0 +1,582 @@
+College of Engineering and Management, KOLAGHAT 
+Computer Network Laboratory ( 6th Semester 2025, IT )
+Experiment: TCP WHOIS server and client. ( Filename - socket5.txt )
+
+Name: __________________________________________________________
+
+Roll No: ______________________  Date: _________________________
+
+Documents to read:
+                    1.  UNIX Network Programming
+                        By W. Richard Stevens
+                        Chapter-6, on Berkeley Sockets
+
+                    2.  Internetworking with TCP/IP vol 1
+                        By Douglas Comer
+                        Chapter-22 The Socket Interface  
+
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Create a directory [whois] in your home directory.
+T-2 $ mkdir $HOME/whois
+T-2 $ cd $HOME/whois
+
+Copy [ socket5.txt ] in  [whois] directory. 
+T-2 $ ftp 192.168.5.___
+
+Port number 43 using TCP is assigned to Internet [ whois ] servers. If
+Internet [whois] client is installed in your PC and you are  connected
+to Internet, try the following command.
+$ whois cemk.ac.in >tmp 2>&1
+
+Check contents of file [./tmp]
+$ less ./tmp
+
+
+In this experiment Internet [ whois ] server will not be  implemented.
+Very simple TCP [ whois ] server and client programs are to be  tested
+in this experiment.
+
+The server reads [login-name] from a client. If there is a user in the
+server with that [login-name], there must be an entry in [/etc/passwd]
+file, corresponding to that [login-name]. Though the server is able to
+send  all fields  of the entry to the client,  only UID, GID  and  the
+fifth field are sent to the client.  If the [login-name] is invalid, a
+suitable error message is sent to the client.
+
+In this experiment we are going to use the standard [whois]  port (43)
+as the  server port.  This port number is below 1024.  For this reason
+the server is to be started as [ root ] user. You may also use another
+non-standard port.
+
+Save the server program as [f1.c].
+
+This  server  reads a login-name from client and  tells the  client if
+the login name is found in [/etc/passwd] file or not.
+--------------------------------------------------------------------
+// file-name f1.c
+// whois TCP server (partial)
+// usage: program-name
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <stdio.h>
+#include  <stdlib.h>
+#include  <string.h>
+#include  <unistd.h>
+#include  <pwd.h>
+#include  <netinet/in.h>
+
+#define   PORT         43    // the server must be started as [root]
+#define   BUFFERSIZE   1024  
+#define   MAXUSERNAME  50    // we allow this long login-name
+#define   DEBUG
+
+int main (int argc, char *argv[])
+{
+  int                      ser_sd, cli_sd, n ;
+  struct     sockaddr_in   server_addr;
+  char                     login_name[MAXUSERNAME];
+  char                     buffer[BUFFERSIZE];
+  ssize_t                  i,j;
+  struct     passwd        *ps;
+
+  if( argc != 1 )
+  {
+    printf("usage: %s \n", argv[0] );
+    exit(1);
+  }
+
+  // IPv4 stream (TCP) socket is created
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket"); exit(1); }
+
+  // members of server address are initialised
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+  server_addr.sin_port = htons( PORT );
+
+  // socket is bound to local endpoint of communication
+  n = bind( ser_sd, (struct sockaddr *) &server_addr,
+            sizeof(server_addr) );
+  if( n == -1 ) { perror("bind"); exit(1); }
+ 
+  // putting the socket in listening state with a backlog of 5
+  n = listen( ser_sd, 5 );
+  if( n == -1 ) { perror("listen"); exit(1); }
+
+  while (1)
+  {
+    printf("%s: [whois] server listening on TCP port %u\n",
+           argv[0], PORT );
+
+    cli_sd = accept( ser_sd, NULL, 0 );
+    if( cli_sd == -1 ) { perror("accept"); exit(1); }
+
+    memset( buffer, '\0', BUFFERSIZE );
+    i = read( cli_sd, buffer, BUFFERSIZE );
+    if( i == -1 ) { perror("read"); exit(1); }
+
+    printf("buffer with newline = <%s> \n", buffer );
+    // strip the newline from [buffer] (redundant due to [sscanf])
+    buffer[i-1] = '\0';
+    printf("buffer without newline = <%s> \n", buffer );
+
+    // set value to variable [login_name]
+    sscanf( buffer, "%s", login_name );
+    printf("login-name = <%s> \n", login_name );
+    // clear buffer
+    memset( buffer, '\0', BUFFERSIZE );
+    
+    // fill the structure pointed to by [ps]
+    ps = getpwnam(login_name);
+    if( ps == NULL ) // no matching entry found
+    {
+       // prepare the buffer with error message
+       i = sprintf( buffer,"user [%s] not found\n", login_name);
+    }
+    else // matching entry found
+    {
+       i = sprintf( buffer,"user [%s] found\n", login_name);
+    }
+
+    // write reply to client
+    j = write( cli_sd, buffer, i );
+    if( j == -1 ) { perror("write"); }
+
+    shutdown( cli_sd, SHUT_RDWR );
+    close( cli_sd );
+  } // endless-loop block
+
+} // end of main
+--------------------------------------------------------------------
+
+Compile the program
+T-2 $ gcc -Wall ./f1.c -o ./one
+
+Start the server
+T-2 $ su
+         Enter [root] password
+T-2 # ./one
+
+Request your friend to test your [whois] server with [ telnet ] client 
+to port 43. 
+
+friend $ nc 172.16.4.__ 43
+
+Enter a valid login name.
+sumit                      <--- a valid login-name is entered
+
+
+
+Was the valid login-name found by your server ( Y / n )
+
+The [whois] server should also be tested with a nonexistent login-name
+friend $ nc 172.16.4.__ 43
+
+Enter a non-existent login name.
+
+Was the nonexistent login-name found by your server ( y / N )
+
+[tcp-echo-client] may also be used by your friend to test the  [whois]
+server.
+
+Terminate your server
+T-2   CTRL-C
+T-2 #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The  [ getpwnam(xxx) ]  function  returns  a  pointer  to a  structure
+[ passwd ], containing the broken out fields of a line, from the  file
+[/etc/passwd], for the entry that matches [ xxx ].
+
+
+The [passwd] structure has the following members
+
+ struct passwd {
+                 char    *pw_name;       // user name
+                 char    *pw_passwd;     // user password
+                 uid_t   pw_uid;         // user id
+                 gid_t   pw_gid;         // group id
+                 char    *pw_gecos;      // GECOS field
+                 char    *pw_dir;        // home directory
+                 char    *pw_shell;      // shell program
+              };
+
+Note: GECOS field is the fifth field of [/etc/passwd]
+
+In [ f1.c ] three more variables are declared to retrieve these values
+from [passwd] structure.
+
+char                  *gecos;
+uid_t                 user_uid;
+gid_t                 user_gid;
+
+These values are written to the [buffer] and it's contents are written
+on the client's socket.
+
+Save the modified [f1.c] as [f2.c]
+----------------------------------------------------------------
+// file-name: f2.c
+// TCP [whois] server
+// usage: program-name
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <stdio.h>
+#include  <stdlib.h>
+#include  <string.h>
+#include  <unistd.h>
+#include  <netinet/in.h>
+#include  <pwd.h>
+
+#define   PORT         43    
+#define   BUFFERSIZE   1024  
+#define   MAXUSERNAME  50    
+#define   DEBUG
+
+int main (int argc, char *argv[])
+{
+  int                   ser_sd, cli_sd, n ;
+  struct  sockaddr_in   server_addr;
+  char                  login_name[MAXUSERNAME];
+  char                  buffer[BUFFERSIZE];
+  ssize_t               i,j;
+  struct     passwd     *ps;
+  char                  *gecos;
+  uid_t                 user_uid;
+  gid_t                 user_gid;
+
+  if( argc != 1 )
+  {
+    printf("usage: %s \n", argv[0] );
+    exit(1);
+  }
+
+  // IPv4 stream (TCP) socket is created
+  ser_sd = socket( PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( ser_sd == -1 ) { perror("socket"); exit(1); }
+
+  // members of server address are initialised
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = htonl( INADDR_ANY );
+  server_addr.sin_port = htons( PORT );
+
+  // socket is bound to local endpoint of communication
+  n = bind( ser_sd, (struct sockaddr *) &server_addr,
+            sizeof(server_addr) );
+  if( n == -1 ) { perror("bind"); exit(1); }
+ 
+  // putting the socket in listening state with a backlog of 5
+  n = listen( ser_sd, 5 );
+  if( n == -1 ) { perror("listen"); exit(1); }
+
+  while (1)
+  {
+    printf("%s: whois server listening on TCP port %u\n",
+           argv[0], PORT );
+
+    cli_sd = accept( ser_sd, NULL, 0 );
+    if( cli_sd == -1 ) { perror("accept"); exit(1); }    
+
+    memset( buffer, '\0', BUFFERSIZE );
+    i = read( cli_sd, buffer, BUFFERSIZE );
+    if( i == -1 ) { perror("read"); }
+
+    // set value to variable [login_name]
+    sscanf( buffer, "%s", login_name );
+    printf("login-name = <%s> \n", login_name );
+    // clear buffer
+    memset( buffer, '\0', BUFFERSIZE );
+
+    // fill the structure pointed to by [ps]
+    ps = getpwnam(login_name);
+    if( ps == NULL ) // no matching entry found
+    {
+       // prepare the buffer with error message
+       i = sprintf( buffer,"user [%s] not found\n", login_name);
+    }
+
+    else  // matching entry found
+    {
+      // three members of [passwd] structure are retrieved
+      user_uid = ps->pw_uid;
+      user_gid = ps->pw_gid;
+      gecos    = ps->pw_gecos;
+      i = sprintf(buffer, "%u  %u  %s \n",
+                  user_uid, user_gid, gecos );
+    }
+
+    // write reply to client
+    j = write( cli_sd, buffer, i );
+    if( j == -1 ) { perror("write"); }    
+
+    shutdown( cli_sd, SHUT_RDWR );
+    close( cli_sd );
+  } // endless-loop block
+
+} // end of main
+----------------------------------------------------------------
+
+Compile and start the server.
+T-2 # gcc -Wall ./f2.c -o ./two
+T-2 # ./two
+
+Scan TCP port 43 of localhost
+T-5 # nmap -sT 127.0.0.1 -p 43
+
+The above scan would terminate the server due to generation of SIGPIPE
+signal. SIGPIPE handler was not installed in [ f2.c ]. In a concurrent
+server a child process crashes.
+
+Restart the server
+T-2 # ./two
+
+Use NULL scan to avoid server crash
+T-5 # nmap -sN 127.0.0.1 -p 43
+
+Request your friend to test your [whois] server, using [telnet] client
+or [tcp-echo-client].
+
+Were GID, UID and GECOS received from your [whois] server ? ( Y / n ) 
+
+Add  a new user for testing your server. You may change entries of the
+following example.
+
+T-5 # adduser tallon 
+.
+.
+Full Name []: Don Tallon 
+Room Number []: Hostel-4/R-24
+Work Phone []: 03228 249444 Ex-1234
+Home Phone []: +61 342441139
+Other []: Wicket Keeper
+.
+
+Ask your server to find this entry. The server need not be re-started.
+
+T-3 $ telnet 127.0.0.1 43
+.
+.
+
+Record:
+
+UID  GID  <--------------------- GECOS field --------------------->
+
+
+Terminate the [whois] server
+T-2   CTRL-C
+T-2 # exit
+T-2 $ cp ./two $HOME/bin/tcp-whois-server
+T-2 $ cd $HOME/bin/
+T-2 $ pwd
+
+T-2 $ su
+          Enter [root] password
+
+[root] is made owner of [tcp-whois-server] program.
+T-2 # chown root ./tcp-whois-server 
+T-2 # ls -l
+
+The program is made [setuid]
+T-2 # chmod 4555 ./tcp-whois-server
+
+Check the program
+T-2 # file ./tcp-whois-server
+
+Go back to [
+As  [root] is owner and the program is [setuid], you should be able to
+run the program ( [root] login is avoided ). 
+
+Note: [setuid root] program can be a security risk.
+
+T-2 # exit
+T-2 $
+Return to [whois] directory 
+T-2 $ cd $HOME/whois
+
+
+[whois] client:
+                [whois] client program connects to the [whois] server,
+sends  a login-name and receives the UID, GID and GECOS field from the
+server, if the login-name exists in the server. [ whois ]  client then
+separates the UID, GID and real name of the user and prints it on  the
+standard output.
+
+Save the following as a file [f3.c]
+-------------------------------------------------------------
+// file-name f3.c
+// TCP [whois] client
+// usage: program-name  server-address  server-port  
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#define  BUFFERSIZE    1024 
+#define  NAMESIZE      100
+
+int main(int argc, char *argv[])
+{
+  int                  sd,n;
+  uid_t                user_uid;
+  gid_t                user_gid;
+  char                 buffer[BUFFERSIZE];
+  char                 real_name[NAMESIZE];
+  struct  sockaddr_in  server_addr;
+  ssize_t              i,j;
+
+  if( argc != 3 ) 
+  {
+    printf( "usage: %s server-addr server-port\n", argv[0] );
+    exit(1);
+  }
+
+  sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if( sd == -1 ) { perror("socket"); exit(1); }
+
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port   = htons(atoi(argv[2]));
+  n = inet_aton( argv[1], &(server_addr.sin_addr) );
+  if( n == 0 ) { printf("Invalid address\n"); exit(1); }  
+
+  n = connect( sd, (struct sockaddr *) &server_addr,
+               sizeof(server_addr) );
+  if( n == -1 ) { perror("connect"); exit(1); }
+
+  // generate a prompt
+  write(STDOUT_FILENO, "remote user's login-name ? ", 27);
+
+  memset(buffer, '\0',BUFFERSIZE);
+  // read the login-name from keyboard into buffer
+  i = read(STDIN_FILENO, buffer, BUFFERSIZE );
+
+  // write the contents of buffer to server
+  j = write( sd, buffer, i );
+  if( j == -1 ) { perror("socket-write"); exit(1); }
+
+  memset(buffer, '\0',BUFFERSIZE);  
+  i = read( sd, buffer, BUFFERSIZE );
+  if( i == -1 ) { perror("socket-read"); exit(1); }
+
+  write( STDOUT_FILENO, "received->", 10 );
+
+  write( STDOUT_FILENO, buffer, i );
+
+  if( strstr(buffer, "not found") == NULL)
+  // this block is executed, if server found a matching entry 
+  { 
+    // read UID and GID from the buffer
+    sscanf(buffer,"%u %u ", &user_uid, &user_gid );
+    printf("UID = %u and GID = %u \n", user_uid, user_gid );
+    
+    // following code separates real name from buffer
+    i = 0;
+
+    // if not alphabetic character increment [buffer] index 
+    while( isalpha(buffer[i]) == 0 )
+    {
+      // stop at first alphabetic character
+      if( isalpha(buffer[i]) != 0 ) break;
+      i++;
+    }
+    // now [i] is on the first character of GECOS
+
+    // real_name is cleared
+    memset( real_name, '\0', NAMESIZE );     
+
+    j = 0;
+    while( 1 ) // endless loop
+    {
+      // stop at first comma
+      if( buffer[i] == ',' ) break;
+
+      // if there is no comma, stop at end of buffer
+      if( buffer[i] == '\n' ) break;      
+
+      real_name[j] = buffer[i];
+      i++;
+      j++;
+    }
+
+    printf("Real name-->%s\n",  real_name);
+
+  } // "server found a matching entry" block 
+
+  shutdown(sd, SHUT_RDWR);
+  close(sd);
+
+  return 0;
+}
+-------------------------------------------------------------
+
+Compile the [whois] client
+T-2 $ gcc -Wall ./f3.c -o ./tcp-whois-client
+
+Move the program to your [bin] directory
+T-2 $ mv ./tcp-whois-client $HOME/bin/
+
+Login into your account in Terminal-4 and start the [whois] server
+T-4 $ tcp-whois-server
+
+Using  the [ whois ] client program, connect to the  [ whois ]  server
+running  on  localhost.  Check a  nonexistent  login-name  and  record
+output
+T-3 $ tcp-whois-client 127.0.0.1 43
+remote user's login-name ? doug_comer
+received->________________________________
+
+
+Check an existing user and record output
+T-3 $ tcp-whois-client 127.0.0.1 43
+remote user's login-name ? sumit
+
+Did you receive UID, GID and real name ? ( Y / n )
+
+
+Connect to the  [whois]  server running on another host.
+T-3 $ tcp-whois-client 192.168.5.____  43
+
+
+Was your client program able to get full name of an user ? ( Y / n )
+
+                        ---------------------
+Optional Assignment-1:
+                       Write [whois] client and server programs, where
+the client sends the UID of the user to the server.
+
+Hint: Read manual of [ getpwuid() ].
+
+                         ----------------------
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+----------------------- end of file socket5.txt ----------------------

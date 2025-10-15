@@ -1,0 +1,18 @@
+COMPUTER NETWORK LABORATORY
+Code: 		CS 691
+Contacts: 	3P
+Credits: 	2
+
+IPC (Message queue)
+NIC Installation & Configuration (Windows/Linux)
+Familiarization with
+Networking cables (CAT5, UTP)
+Connectors (RJ45, T-connector)
+Hubs, Switches
+TCP/UDP Socket Programming
+Multicast & Broadcast Sockets
+Implementation of a Prototype Multithreaded Server
+Implementation of 
+Data Link Layer Flow Control Mechanism (Stop & Wait, Sliding Window)
+Data Link Layer Error Detection Mechanism (Cyclic Redundancy Check)
+Data Link Layer Error Control Mechanism (Selective Repeat, Go Back N)

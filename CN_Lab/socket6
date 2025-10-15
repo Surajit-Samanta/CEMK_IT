@@ -1,0 +1,288 @@
+College of Engineering and Management, KOLAGHAT
+Data Communication Laboratory ( 6th Semester 2025, IT )
+Experiment:  gethostbyname() and getservbyname() functions.
+( Filename - socket6.txt )
+
+Name: __________________________________________________________
+
+Roll No: ______________________  Date: _________________________
+
+
+Square  brackets are used to  separate  keywords,  such as  filenames,
+programs names etc etc from lines of text. They have no other meaning.
+
+Create a directory [socket6] in your home directory.
+T-2 $ mkdir $HOME/socket6
+T-2 $ cd $HOME/socket6
+
+Bring [ socket6.txt ]  in  [socket6] directory from FTP or NFS server. 
+
+gethostbyname( name-of-host ) function:
+                                          The gethostbyname() function
+returns a structure of type [ hostent ] for the given [ name-of-host ]
+argument. Read manual of [ gethostbyname() ] from section 3 of manual.
+
+Note: Domain Name Service is needed for this call.
+
+The [hostent] structure is reproduced from the manual
+
+struct hostent 
+{
+  char    *h_name;        // official name of host
+  char    **h_aliases;    // alias list 
+  int     h_addrtype;     // host address type 
+  int     h_length;       // length of address 
+  char    **h_addr_list;  // list of addresses 
+}
+#define h_addr  h_addr_list[0]  // for backward compatibility 
+
+[f1.c] shows the use of the library function.
+----------------------------------------------------------------
+// file-name f1.c
+// Converts host-name to host-address
+// usage: program-name host-name
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <stdio.h>
+#include  <netdb.h>
+#include  <arpa/inet.h>
+
+int main (int argc, char *argv[])
+{
+  struct   sockaddr_in  serv_addr;
+  struct   hostent      *host_info;
+
+  if( argc != 2 )
+  {
+    printf("usage: %s hostname/hostaddress\n", argv[0] );
+    exit(1);
+  }
+
+  // fill up the members of the [hostent] structure.
+  host_info = gethostbyname( argv[1] );
+  if( host_info == NULL ) { perror("gethostbyname"); exit(1); }
+
+  //Initialise [serv_addr.sin_addr] of [serv_addr] structure 
+  memcpy( &serv_addr.sin_addr,host_info->h_addr_list[0],
+          host_info->h_length );
+
+  // some values are printed
+  printf("Hostname = %s\n", host_info->h_name );
+  printf("Address length = %u\n", host_info->h_length );
+  printf("host address = %s\n", inet_ntoa(serv_addr.sin_addr) );  
+
+  return 0;
+} // end of main
+----------------------------------------------------------------
+
+Compile the program.
+T-2 $ gcc -Wall ./f1.c -o ./one
+
+Edit [ /etc/resolv.conf ], to set correct values of [ nameserver ] and
+[ search ] keywords.
+
+Run the program and record output
+T-2 $ ./one cc-146
+Hostname = 
+Address length = 
+host address = 
+
+Run the program and record output
+T-2 $ ./one 192.168.5.147
+Hostname = 
+Address length = 
+host address = 
+
+
+
+Try  different host-names using FQDN, so search string is not appended
+to the hostname for searching.
+
+T-2 $ ./one it.cemk.ac.in
+T-2 $ ./one mail.yahoo.com
+T-2 $ ./one iitkgp.iitkgp.ernet.in
+T-2 $ ./one 
+T-2 $ ./one
+
+
+
+
+getservbyname( service-name, proto ):
+                                        The  getservbyname()  function
+returns a [servent] structure for the line from [ /etc/services ] that
+matches the service [service-name] using protocol [proto].  If [proto]
+is NULL, any protocol will be matched. 
+Read the manual of the function.
+$ man 3 getservbyname
+
+The [ servent ] structure is reproduced from the manual:
+
+struct servent 
+{
+   char    *s_name;        // official service name
+   char    **s_aliases;    // alias list 
+   int     s_port;         // port number 
+   char    *s_proto;       // protocol to use
+}
+
+The program [f2.c] shows a simple use of the function.
+
+-----------------------------------------------------------------
+// file-name f2.c
+// Converts service-name to protocol-port-number 
+// usage: program-name service-name protocol
+//                    or
+//        program-name service-name
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <stdio.h>
+#include  <netdb.h>
+
+int main (int argc, char *argv[])
+{
+  struct   sockaddr_in  serv_addr;
+  struct   servent      *service_entry;
+
+  if( (argc > 3) || (argc < 2)  )
+  {
+    printf("usage: %s service-name protocol\n", argv[0] );
+    printf("                 or\n" );
+    printf("usage: %s service-name \n", argv[0] );
+    exit(1);
+  }
+
+  service_entry = getservbyname( argv[1], argv[2] );
+  if(service_entry == NULL) { perror("getservbyname"); exit(1); }
+  
+  // member [serv_addr.sin_port] of structure [serv_addr] is
+  // initialised
+  serv_addr.sin_port = service_entry->s_port;
+
+  // value of the port is printed
+  printf("port-number = %u\n", ntohs(serv_addr.sin_port) );
+
+  return 0;
+} // end of main
+-----------------------------------------------------------------
+
+Compile the program
+T-2 $ gcc -Wall ./f2.c -o ./two
+
+Run the program to find port number for different services.
+T-2 $ ./two smtp
+port-number =
+
+T-2 $ ./two whois
+port-number =
+
+T-2 $ ./two domain
+port-number = 
+
+T-2 $ ./two mail
+port-number = 
+
+T-2 $ ./two smtp tcp
+port-number = 
+
+T-2 $ ./two smtp udp
+getservbyname: No such file or directory
+Note: [smtp] uses only TCP
+
+T-2 $ ./two www
+port-number = 
+
+T-2 $ ./two http
+port-number = 
+
+
+
+The  program [ f3.c ] is a TCP client,  using [ gethostbyname() ]  and
+[getservbyname()] functions.  Error checking of some calls are omitted
+to reduce size of the program.
+-----------------------------------------------------------------
+// file-name f3.c
+// TCP [echo] client
+// usage: program-name host-name service-name 
+
+#include  <sys/types.h>
+#include  <sys/socket.h>
+#include  <stdio.h>
+#include  <unistd.h>
+#include  <netdb.h>
+
+#define   BUFFERSIZE   1024
+
+int main (int argc, char *argv[])
+{
+  int                   sd, n;
+  struct   sockaddr_in  serv_addr;
+  struct   hostent      *host_info;
+  struct   servent      *service_entry;
+  char                  buffer[BUFFERSIZE];
+  ssize_t               i,j;
+
+  if( argc != 3 )
+  {
+    printf("usage: %s host-name service-name\n",
+            argv[0] );
+    exit(1);
+  }
+
+  // Get IP address from resolver.
+  host_info = gethostbyname( argv[1] );
+  if ( host_info == NULL ) { perror("gethostbyname"); exit(1); }
+
+  // [serv_addr.sin_family] is initialised.
+  serv_addr.sin_family = AF_INET;
+
+  // [serv_addr.sin_addr] is initialised.
+  memcpy( &serv_addr.sin_addr,host_info->h_addr_list[0],
+          host_info->h_length );
+
+  // get protocol-port from [/etc/services]
+  service_entry = getservbyname( argv[2], NULL );
+  if(service_entry == NULL) { perror("getservbyname"); exit(1); }
+
+  // [serv_addr.sin_port] is initialised.
+  serv_addr.sin_port = service_entry->s_port;
+
+
+  sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP );
+  if( sd == -1 ) { perror("socket"); exit(1); }
+
+  n = connect( sd, (struct sockaddr *) &serv_addr,
+                        sizeof(serv_addr) );
+
+  write( STDOUT_FILENO, "Enter a string ", 15 );
+  memset( buffer,'\0', BUFFERSIZE ); 
+  i = read( STDIN_FILENO, buffer, BUFFERSIZE );
+  j = write( sd, buffer, i );
+  memset( buffer,'\0', BUFFERSIZE );
+  i = read( sd,buffer, BUFFERSIZE );
+  write( STDOUT_FILENO, buffer, i );  
+
+  return 0;
+} // end of main
+-----------------------------------------------------------------
+
+T-2 $ gcc -Wall ./f3.c -o ./three
+
+Run the program to test [echo] server of a localhost
+T-2 $ ./three localhost echo
+
+Run the program to test [echo] server of a host
+T-2 $ ./three cc-252 echo
+
+
+Run the program to test [daytime] server of a host
+T-2 $ ./three cc-160 daytime
+
+                        ----------------------
+Feedback:
+           Please point out mistakes and suggest which portions should
+be removed, added, expanded etc etc.             
+---------------------- end of file socket6.txt -----------------------
+
+

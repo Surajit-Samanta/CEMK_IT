@@ -1,0 +1,12 @@
+Write socket program:-
+---------------------------------------------------------
+	1. to create client-server communication using TCP.
+	2. to create client-server communication using UDP.
+	3. to implement echo server-echo client.
+	4. to implement chat server-chat client.
+	5. to implement day server-day client.
+	6. to implement time server-time client.
+	7. to implement mail server-mail client.
+	8. to implement file server-file client.
+	9. to implement math server-math client.
+	10.to implement concurrent server-concurrent client
